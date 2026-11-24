@@ -491,7 +491,7 @@ function renderCallAction(callContact, onOpenCallSetup) {
   );
 }
 
-function renderSettingsOverlay(theme, callContact, onSelectTheme, onSaveContact, onClearContact, onClose) {
+function renderSettingsOverlay(theme, callContact, demoCtx, onSelectTheme, onSaveContact, onClearContact, onClose) {
   const themes = [
     { id: 'system', label: 'Система' },
     { id: 'light', label: 'Светлая' },
@@ -623,6 +623,57 @@ function renderSettingsOverlay(theme, callContact, onSelectTheme, onSaveContact,
         'p',
         { className: 'hb-settings-note' },
         'Сохраняется локально в браузере. Кнопка вызова открывает звонок с телефона (tel:).'
+      ),
+      el(
+        'details',
+        { className: 'hb-settings-demo' },
+        el('summary', { className: 'hb-settings-demo__summary' }, 'Сценарий демо и масштаб зон'),
+        el(
+          'div',
+          { className: 'hb-settings-demo__body' },
+          el(
+            'div',
+            { className: 'hb-settings-demo__row' },
+            demoCtx.scenarios.map((s) =>
+              el(
+                'button',
+                {
+                  type: 'button',
+                  className: 'hb-settings-demo__btn',
+                  'aria-pressed': String(demoCtx.scenarioId === s.id),
+                  onClick: () => demoCtx.onSelectScenario(s.id)
+                },
+                s.shortLabel
+              )
+            )
+          ),
+          el(
+            'div',
+            { className: 'hb-settings-demo__row hb-settings-demo__row--2' },
+            demoCtx.sites.map((s) =>
+              el(
+                'button',
+                {
+                  type: 'button',
+                  className: 'hb-settings-demo__btn',
+                  'aria-pressed': String(demoCtx.siteId === s.id),
+                  onClick: () => demoCtx.onSelectSite(s.id)
+                },
+                s.label
+              )
+            )
+          ),
+          el(
+            'button',
+            {
+              type: 'button',
+              className: 'hb-settings-demo__btn',
+              'aria-pressed': String(demoCtx.motionPaused),
+              onClick: demoCtx.onToggleMotion
+            },
+            demoCtx.motionPaused ? 'Включить анимации' : 'Пауза анимаций'
+          )
+        )
       )
     )
   );
@@ -861,7 +912,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
 
   const params = new URLSearchParams(window.location.search);
   const state = {
-    siteId: DEMO_SITES.some((s) => s.id === params.get('site')) ? params.get('site') : 'srb-pilot-1',
+    siteId: DEMO_SITES.some((s) => s.id === params.get('site')) ? params.get('site') : 'srb-scale-4',
     scenarioId: scenarios.some((s) => s.id === params.get('scenario')) ? params.get('scenario') : 'incident',
     selectedZoneId: null,
     activeTab: 'all',
@@ -1552,6 +1603,24 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
             ? renderSettingsOverlay(
                 state.theme,
                 state.callContact,
+                {
+                  scenarios,
+                  scenarioId: state.scenarioId,
+                  sites: DEMO_SITES,
+                  siteId: state.siteId,
+                  motionPaused: state.motionPaused,
+                  onSelectScenario: async (id) => {
+                    state.scenarioId = id;
+                    syncUrl();
+                    await loadSnapshot();
+                  },
+                  onSelectSite: async (id) => {
+                    state.siteId = id;
+                    syncUrl();
+                    await loadSnapshot();
+                  },
+                  onToggleMotion: toggleMotion
+                },
                 setTheme,
                 updateCallContact,
                 clearCallContact,

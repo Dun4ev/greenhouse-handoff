@@ -83,14 +83,14 @@ p, li { text-wrap: pretty; }
   font-weight: 700;
 }
 
-/* Внешняя страница-стенд */
+/* Внешняя страница-стенд: на мобильном (<820px) скрываем стенд, чтобы приложение шло во весь экран */
 .hybrid-page {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(26px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  padding: 0;
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 @media (min-width: 820px) {
@@ -102,7 +102,7 @@ p, li { text-wrap: pretty; }
       "footer phone";
     align-items: start;
     gap: 16px 24px;
-    padding-top: 22px;
+    padding: 22px 12px 26px;
   }
   .demo-toolbar { grid-area: controls; }
   .hb-phone-stage { grid-area: phone; }
@@ -275,10 +275,10 @@ p, li { text-wrap: pretty; }
 
 .hb-device {
   container: phone / inline-size;
-  border-radius: 20px;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid #243830;
-  box-shadow: 0 12px 30px -14px rgba(14, 32, 26, 0.35);
+  border: 0;
+  box-shadow: none;
   background: var(--forest);
 }
 
@@ -286,7 +286,7 @@ p, li { text-wrap: pretty; }
   display: none;
 }
 
-@media (min-width: 520px) {
+@media (min-width: 820px) {
   .hb-device {
     background: #141917;
     padding: 10px 9px 11px;
@@ -336,7 +336,7 @@ p, li { text-wrap: pretty; }
   background: var(--forest);
   display: flex;
   flex-direction: column;
-  min-block-size: 700px;
+  min-block-size: 100dvh;
 }
 
 /* Верхняя ботаническая сцена (2B) */
@@ -344,7 +344,7 @@ p, li { text-wrap: pretty; }
   position: relative;
   flex-shrink: 0;
   overflow: hidden;
-  padding: 12px 12px 26px;
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 26px max(12px, env(safe-area-inset-left, 0px));
 }
 
 .hb-hero--compact {
@@ -838,7 +838,7 @@ p, li { text-wrap: pretty; }
   pointer-events: none;
 }
 
-@media (max-width: 519px) {
+@media (max-width: 819px) {
   .hb-bottom-dock-wrap {
     position: fixed;
     left: 0;
@@ -846,7 +846,7 @@ p, li { text-wrap: pretty; }
     bottom: 0;
     z-index: 30;
     margin-top: 0;
-    max-width: 440px;
+    max-width: 100%;
     margin-inline: auto;
   }
 }
@@ -1713,6 +1713,13 @@ p, li { text-wrap: pretty; }
 
 .demo-footer strong { color: var(--ink); }
 
+@media (max-width: 819px) {
+  .demo-toolbar,
+  .demo-footer {
+    display: none;
+  }
+}
+
 /* Кнопки телефона и настроек в шапке (Вариант А) */
 .hb-top-actions {
   display: inline-flex;
@@ -1844,10 +1851,10 @@ p, li { text-wrap: pretty; }
   justify-items: center;
 }
 
-@media (max-width: 519px) {
+@media (max-width: 819px) {
   .hb-settings-backdrop {
     position: fixed;
-    max-width: 440px;
+    max-width: 100%;
     margin-inline: auto;
   }
 }
@@ -2029,6 +2036,71 @@ p, li { text-wrap: pretty; }
   font-size: 11px;
   line-height: 1.38;
   color: #bdd4c8;
+}
+
+.hb-settings-demo {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  padding-top: 8px;
+}
+
+.hb-settings-demo__summary {
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cfe4d9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: 28px;
+}
+
+.hb-settings-demo__summary::-webkit-details-marker {
+  display: none;
+}
+
+.hb-settings-demo__summary::after {
+  content: "▾";
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.hb-settings-demo[open] .hb-settings-demo__summary::after {
+  transform: rotate(180deg);
+}
+
+.hb-settings-demo__body {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.hb-settings-demo__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.hb-settings-demo__row--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hb-settings-demo__btn {
+  min-block-size: 32px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6f2ec;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.hb-settings-demo__btn[aria-pressed="true"] {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #11261f;
 }
 
 /* Темная тема (выбирается вручную или через Систему) */
