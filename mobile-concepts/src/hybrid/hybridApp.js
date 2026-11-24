@@ -1,7 +1,7 @@
 // Интерактивный мобильный прототип-гибрид 2B (Стекло и ботаника) + 2C (График поливов и счетчики)
 // + нижний плавающий док в стиле Cultiveq с просмотром всех точек полива и выезжающим компактным графиком.
 
-import { createDataProvider } from '../data/provider.js?v=4';
+import { createDataProvider } from '../data/provider.js?v=5';
 import { clear, el, svgEl } from '../ui/dom.js';
 
 const DEMO_SITES = [
@@ -205,6 +205,7 @@ function renderCompactZoneCard(zone, isSelected, isJumpFocus, isUpdated, onSelec
     {
       type: 'button',
       className: `hb-zcard ${toneClass} ${isSelected ? 'hb-zcard--selected' : ''} ${isJumpFocus ? 'hb-zcard--jump-focus' : ''} ${isUpdated ? 'hb-zcard--updated' : ''}`,
+      dataset: { zoneCardId: zone.id },
       'aria-pressed': String(isSelected),
       onClick: () => onSelect(zone.id)
     },
@@ -293,7 +294,8 @@ function renderAllOutletsView(snapshot, onSelectZone) {
               return el(
                 'li',
                 {
-                  className: `hb-opoint ${isUnknown ? 'hb-opoint--unknown' : isActive ? 'hb-opoint--active' : 'hb-opoint--idle'}`
+                  className: `hb-opoint ${isUnknown ? 'hb-opoint--unknown' : isActive ? 'hb-opoint--active' : 'hb-opoint--idle'}`,
+                  dataset: isActive ? { activeOutletZone: zone.id } : null
                 },
                 el('span', { className: 'hb-opoint__code' }, lbl),
                 el(
@@ -457,7 +459,8 @@ function renderFloatingPulseDrawer(snapshot, selectedZoneId, animateBars, onSele
             el(
               'span',
               {
-                className: `hb-dtrack__sum ${strip.hasGap ? 'is-gap' : noWateringAtAll ? 'is-dry' : ''}`
+                className: `hb-dtrack__sum ${strip.hasGap ? 'is-gap' : noWateringAtAll ? 'is-dry' : ''}`,
+                dataset: { drawerSumZone: zone.id }
               },
               strip.summary
             )
@@ -721,7 +724,7 @@ function renderZoneDetailCard(zone, callContact, onOpenCallSetup, onClose) {
 
   return el(
     'section',
-    { className: 'hb-inspector', 'aria-label': `Детали ${zone.name}` },
+    { className: 'hb-inspector', dataset: { inspectorZone: zone.id }, 'aria-label': `Детали ${zone.name}` },
     el(
       'div',
       { className: 'hb-inspector__head' },
@@ -740,13 +743,13 @@ function renderZoneDetailCard(zone, callContact, onOpenCallSetup, onClose) {
     el(
       'div',
       { className: 'hb-matrix' },
-      cells.map((c) =>
+      cells.map((c, idx) =>
         el(
           'div',
           { className: `hb-mcell hb-mcell--${c.tone}` },
           el('span', { className: 'hb-mcell__k' }, c.label),
           el('strong', { className: 'hb-mcell__v' }, c.val),
-          el('span', { className: 'hb-mcell__s' }, c.sub)
+          el('span', { className: 'hb-mcell__s', dataset: { mcellSub: idx } }, c.sub)
         )
       )
     ),
@@ -1141,8 +1144,75 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     });
   }
 
+  function patchLiveTick(nextSnap) {
+    snapshot = nextSnap;
+    const clockEl = root.querySelector('.hb-clock');
+    if (clockEl && clockEl.textContent !== snapshot.nowLabel) {
+      clockEl.textContent = snapshot.nowLabel;
+    }
+    const deviceClock = root.querySelector('.hb-device__bar > span:first-child');
+    if (deviceClock && deviceClock.textContent !== snapshot.nowLabel) {
+      deviceClock.textContent = snapshot.nowLabel;
+    }
+
+    for (const zone of snapshot.zones) {
+      const isWatering = zone.watering.state === 'watering';
+      const isUnknown = !zone.telemetryReliable;
+      const shortAge = zone.telemetry.ageLabel.replace(/\s*назад$/, '');
+
+      const card = root.querySelector(`[data-zone-card-id="${zone.id}"]`);
+      if (card) {
+        const mainEl = card.querySelector('.hb-zcard__main');
+        const subEl = card.querySelector('.hb-zcard__sub');
+        const primaryLine = isWatering
+          ? `${zone.watering.elapsedLabel || 'Идет'} · ${zone.watering.activeOutletLabel}`
+          : isUnknown
+            ? `? · ${shortAge}`
+            : 'Ожидание';
+        const secondaryLine = isWatering
+          ? `FS1: Есть поток · ${zone.watering.activeOutlet}/${zone.outletsTotal}`
+          : zone.connection.state === 'offline'
+            ? 'FS1: Неизвестно · Обрыв'
+            : zone.telemetry.freshness !== 'fresh'
+              ? 'Связь есть · FS1 неизв.'
+              : `FS1: Нет потока · ${shortAge}`;
+        if (mainEl && mainEl.textContent !== primaryLine) mainEl.textContent = primaryLine;
+        if (subEl && subEl.textContent !== secondaryLine) subEl.textContent = secondaryLine;
+      }
+
+      const drawerSum = root.querySelector(`[data-drawer-sum-zone="${zone.id}"]`);
+      if (drawerSum && drawerSum.textContent !== zone.pulseStrip.summary) {
+        drawerSum.textContent = zone.pulseStrip.summary;
+      }
+
+      const activeOutlet = root.querySelector(`[data-active-outlet-zone="${zone.id}"] .hb-opoint__state`);
+      if (activeOutlet && isWatering) {
+        const lbl = zone.watering.elapsedLabel || 'Полив';
+        if (activeOutlet.textContent !== lbl) activeOutlet.textContent = lbl;
+      }
+
+      const inspector = root.querySelector(`[data-inspector-zone="${zone.id}"]`);
+      if (inspector) {
+        const freshSub = inspector.querySelector('[data-mcell-sub="1"]');
+        const freshText = `${zone.telemetry.packetId} · ${zone.telemetry.ageLabel}`;
+        if (freshSub && freshSub.textContent !== freshText) freshSub.textContent = freshText;
+        const waterSub = inspector.querySelector('[data-mcell-sub="3"]');
+        if (waterSub && isWatering) {
+          const waterText = `${zone.watering.activeOutletLabel} (${zone.watering.activeOutlet}/${zone.outletsTotal}) · ${zone.watering.elapsedLabel}`;
+          if (waterSub.textContent !== waterText) waterSub.textContent = waterText;
+        }
+      }
+    }
+  }
+
   function applyLivePayload(payload) {
     if (!payload?.snapshot) return;
+    const hasStructuralChange = Boolean(payload.liveEvent) || (payload.changedZoneIds && payload.changedZoneIds.length > 0);
+    if (!hasStructuralChange) {
+      patchLiveTick(payload.snapshot);
+      return;
+    }
+
     snapshot = payload.snapshot;
     updatedZoneIds = new Set(payload.changedZoneIds || []);
     if (payload.liveEvent) {
@@ -1150,9 +1220,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       if (liveNoticeTimer) clearTimeout(liveNoticeTimer);
       liveNoticeTimer = setTimeout(() => {
         liveNotice = null;
-        if (!state.settingsOpen && !isInteracting) {
-          render({ isLiveTick: true });
-        }
+        root.querySelector('.hb-live-toast')?.remove();
       }, 4200);
     }
     render({ isLiveTick: true });

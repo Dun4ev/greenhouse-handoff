@@ -358,17 +358,6 @@ p, li { text-wrap: pretty; }
   display: block;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .hb-backdrop__img {
-    animation: hbFoliageBreath 18s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes hbFoliageBreath {
-  from { transform: scale(1); }
-  to { transform: scale(1.06); }
-}
-
 .hb-backdrop__scrim {
   position: absolute;
   inset: 0;
@@ -2471,8 +2460,10 @@ html[data-motion="paused"] *::after {
   flex-shrink: 0;
 }
 
-/* На ежесекундных тиках не перепроигрываем появление списка событий */
-.hb-screen--live-tick .hb-event {
+/* На обновлениях live-симуляции не мигаем уже открытыми панелями и списком событий */
+.hb-screen--live-tick .hb-event,
+.hb-screen--live-tick .hb-inspector,
+.hb-screen--live-tick .hb-pulse-drawer {
   transition: none;
 }
 
