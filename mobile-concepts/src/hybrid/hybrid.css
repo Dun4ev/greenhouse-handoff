@@ -95,18 +95,11 @@ p, li { text-wrap: pretty; }
 
 @media (min-width: 820px) {
   .hybrid-page {
-    max-width: 860px;
-    grid-template-columns: minmax(0, 1fr) 406px;
-    grid-template-areas:
-      "controls phone"
-      "footer phone";
+    max-width: 430px;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: 16px 24px;
     padding: 22px 12px 26px;
   }
-  .demo-toolbar { grid-area: controls; }
-  .hb-phone-stage { grid-area: phone; }
-  .demo-footer { grid-area: footer; }
 }
 
 .demo-toolbar {

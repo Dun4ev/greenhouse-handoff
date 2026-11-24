@@ -1631,26 +1631,14 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       )
     );
 
-    const footer = el(
-      'footer',
-      { className: 'demo-footer' },
-      el('strong', null, 'Демо-прототип (только мониторинг, данные и фон иллюстративные).'),
-      el(
-        'span',
-        null,
-        'Внизу — плавающая панель: «Обзор зон», «Все точки полива», «График полива» (выезжающая компактная карточка) и «Тревоги».'
-      )
-    );
-
     clear(root);
     root.appendChild(
       el(
         'div',
         { className: 'hybrid-page' },
         el('a', { href: '#main-content', className: 'skip-link visually-hidden' }, 'Перейти к экрану приложения'),
-        buildDemoBar(),
+        el('h1', { className: 'visually-hidden' }, 'Greenhouse — мониторинг полива'),
         phoneStage,
-        footer,
         announcer
       )
     );
