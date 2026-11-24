@@ -2409,7 +2409,7 @@ html[data-motion="paused"] *::after {
 .hb-live-toast {
   position: absolute;
   left: 50%;
-  bottom: 0;
+  top: 15px;
   transform: translateX(-50%);
   z-index: 4;
   max-width: 100%;
