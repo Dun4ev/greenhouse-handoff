@@ -1,7 +1,7 @@
 // Интерактивный мобильный прототип-гибрид 2B (Стекло и ботаника) + 2C (График поливов и счетчики)
 // + нижний плавающий док в стиле Cultiveq с просмотром всех точек полива и выезжающим компактным графиком.
 
-import { createDataProvider } from '../data/provider.js?v=5';
+import { createDataProvider } from '../data/provider.js?v=6';
 import { clear, el, svgEl } from '../ui/dom.js';
 
 const DEMO_SITES = [
@@ -1221,6 +1221,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       liveNoticeTimer = setTimeout(() => {
         liveNotice = null;
         root.querySelector('.hb-live-toast')?.remove();
+        root.querySelector('.hb-sheet-top')?.classList.remove('has-toast');
       }, 4200);
     }
     render({ isLiveTick: true });
@@ -1660,10 +1661,35 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
             renderTimeline(snapshot, state.activeTab, state.callContact, () => openSettings(true), selectTab, jumpToZone)
           );
 
+    const liveToastEl = liveNotice
+      ? el(
+          'button',
+          {
+            type: 'button',
+            className: `hb-live-toast hb-live-toast--${liveNotice.tone}`,
+            onClick: () => {
+              const targetZoneId = liveNotice.zoneId;
+              liveNotice = null;
+              jumpToZone(targetZoneId);
+            }
+          },
+          el('span', { className: 'hb-live-toast__dot', 'aria-hidden': 'true' }),
+          el('span', { className: 'hb-live-toast__text' }, liveNotice.text),
+          el('span', { className: 'hb-live-toast__arrow', 'aria-hidden': 'true' }, '→')
+        )
+      : null;
+
+    const sheetTop = el(
+      'div',
+      { className: `hb-sheet-top ${liveToastEl ? 'has-toast' : ''}` },
+      sheetHandle,
+      liveToastEl
+    );
+
     const whiteSheet = el(
       'div',
       { className: `hb-sheet ${state.sheetExpanded ? 'hb-sheet--expanded' : ''}` },
-      sheetHandle,
+      sheetTop,
       sheetBody
     );
 
@@ -1742,24 +1768,6 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       )
     );
 
-    const liveToastEl = liveNotice
-      ? el(
-          'button',
-          {
-            type: 'button',
-            className: `hb-live-toast hb-live-toast--${liveNotice.tone}`,
-            onClick: () => {
-              const targetZoneId = liveNotice.zoneId;
-              liveNotice = null;
-              jumpToZone(targetZoneId);
-            }
-          },
-          el('span', { className: 'hb-live-toast__dot', 'aria-hidden': 'true' }),
-          el('span', { className: 'hb-live-toast__text' }, liveNotice.text),
-          el('span', { className: 'hb-live-toast__arrow', 'aria-hidden': 'true' }, '→')
-        )
-      : null;
-
     const phoneStage = el(
       'main',
       { id: 'main-content', className: 'hb-phone-stage', tabindex: '-1' },
@@ -1778,7 +1786,6 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
           {
             className: `hb-screen ${state.pulseDrawerOpen ? 'hb-screen--drawer-open' : ''} ${isLiveTick ? 'hb-screen--live-tick' : ''}`
           },
-          liveToastEl,
           heroTop,
           whiteSheet,
           bottomOverlay,
