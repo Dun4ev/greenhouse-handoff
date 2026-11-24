@@ -1967,6 +1967,10 @@ p, li { text-wrap: pretty; }
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
+.hb-theme-seg--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .hb-theme-seg__btn {
   min-block-size: var(--target);
   border: 0;
