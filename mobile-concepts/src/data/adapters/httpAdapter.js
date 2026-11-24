@@ -30,6 +30,23 @@ export function createHttpAdapter({ baseUrl = '/api/v1', fetchImpl = globalThis.
     async getFleetSnapshots() {
       const sites = await this.getSites();
       return Promise.all(sites.map((site) => this.getSnapshot({ siteId: site.id })));
+    },
+    subscribe({ siteId, intervalMs = 5000, onUpdate } = {}) {
+      let stopped = false;
+      const poll = async () => {
+        if (stopped || typeof onUpdate !== 'function') return;
+        try {
+          const snapshot = await this.getSnapshot({ siteId });
+          if (!stopped) onUpdate({ snapshot, liveEvent: null, changedZoneIds: [] });
+        } catch {
+          // Ошибки сети обрабатываются при следующем цикле опроса
+        }
+      };
+      const timer = setInterval(poll, intervalMs);
+      return () => {
+        stopped = true;
+        clearInterval(timer);
+      };
     }
   };
 }

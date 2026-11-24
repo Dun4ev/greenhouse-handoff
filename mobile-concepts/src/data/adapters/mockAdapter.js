@@ -426,6 +426,268 @@ function buildScenarioRaw(siteId, scenarioId, adapterTag) {
   };
 }
 
+function formatClockHM(totalSeconds) {
+  const wrapped = ((totalSeconds % 86400) + 86400) % 86400;
+  const h = String(Math.floor(wrapped / 3600)).padStart(2, '0');
+  const m = String(Math.floor((wrapped % 3600) / 60)).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function formatClockHMS(totalSeconds) {
+  const wrapped = ((totalSeconds % 86400) + 86400) % 86400;
+  const h = String(Math.floor(wrapped / 3600)).padStart(2, '0');
+  const m = String(Math.floor((wrapped % 3600) / 60)).padStart(2, '0');
+  const s = String(wrapped % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function formatElapsedTimer(totalSeconds) {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function parseMinutesFromLabel(label, fallback = 5) {
+  const match = String(label || '').match(/(\d+)/);
+  return match ? Number(match[1]) : fallback;
+}
+
+function createLiveSimulator(siteId, scenarioId, adapterTag) {
+  const raw = buildScenarioRaw(siteId, scenarioId, adapterTag);
+  const [hh, mm] = String(raw.nowLabel || '14:32').split(':').map(Number);
+  let simSeconds = (Number.isFinite(hh) ? hh : 14) * 3600 + (Number.isFinite(mm) ? mm : 32) * 60;
+  let packetSeq = 420;
+  let eventSeq = 1;
+  let tickCount = 0;
+  let scriptStep = 0;
+
+  // Храним живые секундные счетчики поверх raw.zones
+  const zoneMeta = new Map(
+    raw.zones.map((z) => {
+      const isWater = z.watering?.state === 'watering' && z.connection?.state === 'online' && z.telemetry?.freshness === 'fresh';
+      const isFresh = z.connection?.state === 'online' && z.telemetry?.freshness === 'fresh';
+      return [
+        z.id,
+        {
+          ageSec: isFresh ? parseMinutesFromLabel(z.telemetry?.ageLabel, 12) : (z.telemetry?.gapMinutes ?? 22) * 60,
+          elapsedSec: isWater ? parseMinutesFromLabel(z.watering?.elapsedLabel, 6) * 60 : 0
+        }
+      ];
+    })
+  );
+
+  function pushSlot(zone, slotState) {
+    if (!zone.pulseStrip?.slots) return;
+    zone.pulseStrip.slots = [...zone.pulseStrip.slots.slice(1), slotState];
+    zone.pulseStrip.windowEnd = formatClockHM(simSeconds);
+    zone.pulseStrip.windowStart = formatClockHM(simSeconds - 3600);
+  }
+
+  function prependEvent(evt) {
+    raw.events = [evt, ...raw.events].slice(0, 14);
+  }
+
+  function setZoneWatering(zone, outletIdx, reasonText) {
+    const meta = zoneMeta.get(zone.id);
+    const outletLabel = zone.outletLabels[outletIdx - 1] ?? `К${outletIdx + 3}`;
+    const pid = `P-${packetSeq++}`;
+    const hms = formatClockHMS(simSeconds);
+    const hm = formatClockHM(simSeconds);
+    zone.connection = { state: 'online', lastLinkAt: hms, note: 'Канал ША-У стабилен' };
+    zone.telemetry = {
+      freshness: 'fresh',
+      packetId: pid,
+      deviceTime: hms,
+      receivedAt: hms,
+      ageLabel: '1 с назад',
+      gapMinutes: 0
+    };
+    zone.flow = { state: 'present' };
+    zone.watering = { state: 'watering', activeOutlet: outletIdx, elapsedLabel: '0:01' };
+    if (meta) {
+      meta.ageSec = 1;
+      meta.elapsedSec = 1;
+    }
+    pushSlot(zone, 'watering');
+    zone.pulseStrip.summary = `Идет полив ${outletLabel} (0:01)`;
+    prependEvent({
+      id: `live-${eventSeq++}`,
+      packetId: pid,
+      time: hm,
+      zoneId: zone.id,
+      text: reasonText || `Начат полив участка ${outletIdx} (${outletLabel})`,
+      kind: 'info',
+      meta: 'FS1 подтвердил наличие потока'
+    });
+    return {
+      zoneId: zone.id,
+      tone: 'water',
+      text: `${zone.name} · ${reasonText || `Полив ${outletLabel}`} (FS1)`
+    };
+  }
+
+  function setZoneIdle(zone, reasonText) {
+    const meta = zoneMeta.get(zone.id);
+    const pid = `P-${packetSeq++}`;
+    const hms = formatClockHMS(simSeconds);
+    const hm = formatClockHM(simSeconds);
+    zone.connection = { state: 'online', lastLinkAt: hms, note: 'Канал ША-У стабилен' };
+    zone.telemetry = {
+      freshness: 'fresh',
+      packetId: pid,
+      deviceTime: hms,
+      receivedAt: hms,
+      ageLabel: '1 с назад',
+      gapMinutes: 0
+    };
+    zone.flow = { state: 'absent' };
+    zone.watering = { state: 'idle', activeOutlet: null, elapsedLabel: null };
+    if (meta) {
+      meta.ageSec = 1;
+      meta.elapsedSec = 0;
+    }
+    pushSlot(zone, 'idle');
+    zone.pulseStrip.summary = 'Простой · ожидание следующего цикла';
+    prependEvent({
+      id: `live-${eventSeq++}`,
+      packetId: pid,
+      time: hm,
+      zoneId: zone.id,
+      text: reasonText || 'Полив завершен, переход в простой (ожидание)',
+      kind: 'info',
+      meta: 'Реле FS1: нет потока'
+    });
+    return {
+      zoneId: zone.id,
+      tone: 'ok',
+      text: `${zone.name} · ${reasonText || 'Переход в простой'}`
+    };
+  }
+
+  function setZoneOffline(zone) {
+    const meta = zoneMeta.get(zone.id);
+    const hm = formatClockHM(simSeconds);
+    const hms = formatClockHMS(simSeconds);
+    zone.connection = { state: 'offline', lastLinkAt: hms, note: 'Шкаф ША-У не отвечает по каналу' };
+    zone.telemetry = {
+      ...zone.telemetry,
+      freshness: 'stale',
+      ageLabel: '1 мин назад',
+      gapMinutes: 1
+    };
+    zone.flow = { state: 'unknown' };
+    zone.watering = { state: 'unknown', activeOutlet: null, elapsedLabel: null };
+    if (meta) {
+      meta.ageSec = 60;
+      meta.elapsedSec = 0;
+    }
+    pushSlot(zone, 'gap');
+    zone.pulseStrip.summary = 'Разрыв связи · состояние скрыто';
+    prependEvent({
+      id: `live-${eventSeq++}`,
+      time: hm,
+      zoneId: zone.id,
+      text: 'Потеря связи с ША-У, данные переведены в «Неизвестно»',
+      kind: 'gap',
+      gapLabel: 'Разрыв связи · сейчас',
+      meta: 'Последнее известное состояние скрыто'
+    });
+    return {
+      zoneId: zone.id,
+      tone: 'danger',
+      text: `${zone.name} · Потеря связи (статус скрыт)`
+    };
+  }
+
+  function step() {
+    tickCount += 1;
+    simSeconds += 1;
+    raw.nowLabel = formatClockHM(simSeconds);
+    const changedZoneIds = [];
+    let liveEvent = null;
+
+    // 1. Обновляем живые таймеры каждой зоны
+    for (const z of raw.zones) {
+      const meta = zoneMeta.get(z.id);
+      if (!meta) continue;
+      const isReliable = z.connection.state === 'online' && z.telemetry.freshness === 'fresh';
+      if (isReliable) {
+        meta.ageSec += 1;
+        // Периодический свежий heartbeat каждые 12 с
+        if (meta.ageSec >= 12) {
+          meta.ageSec = 1;
+          z.telemetry.packetId = `P-${packetSeq++}`;
+          z.telemetry.deviceTime = formatClockHMS(simSeconds);
+          z.telemetry.receivedAt = z.telemetry.deviceTime;
+        }
+        z.telemetry.ageLabel = `${meta.ageSec} с назад`;
+
+        if (z.watering.state === 'watering') {
+          meta.elapsedSec += 1;
+          z.watering.elapsedLabel = formatElapsedTimer(meta.elapsedSec);
+          const lbl = z.outletLabels[(z.watering.activeOutlet ?? 1) - 1] ?? 'К4';
+          z.pulseStrip.summary = `Идет полив ${lbl} (${z.watering.elapsedLabel})`;
+        }
+      } else {
+        meta.ageSec += 1;
+        const mins = Math.max(1, Math.floor(meta.ageSec / 60));
+        z.telemetry.gapMinutes = mins;
+        z.telemetry.ageLabel = `${mins} мин назад`;
+      }
+    }
+
+    // 2. Каждые 6 секунд генерируем заметное живое событие (полив / смена клапана / простой / связь)
+    if (tickCount % 6 === 0) {
+      const z1 = raw.zones[0];
+      const z2 = raw.zones[1];
+      const z3 = raw.zones[2];
+      const z4 = raw.zones[3];
+      const isNormal = scenarioId === 'normal';
+
+      const actions = isNormal
+        ? [
+            () => z1 && setZoneWatering(z1, 1, 'Запущен полив участка 1 (К4)'),
+            () => (z3 ? setZoneWatering(z3, 2, 'Запущен полив участка 2 (К5)') : z2 && setZoneWatering(z2, 2, 'Запущен полив участка 2 (К5)')),
+            () => z1 && setZoneIdle(z1, 'Полив К4 завершен, режим простоя'),
+            () => (z4 ? setZoneWatering(z4, 4, 'Запущен полив участка 4 (К7)') : z2 && setZoneIdle(z2, 'Полив завершен, простой')),
+            () => (z3 ? setZoneIdle(z3, 'Полив К5 завершен, простой') : z1 && setZoneWatering(z1, 2, 'Переход на участок 2 (К5)')),
+            () => (z4 ? setZoneIdle(z4, 'Полив К7 завершен, простой') : z1 && setZoneIdle(z1, 'Цикл завершен, простой'))
+          ]
+        : [
+            () => (z3 ? setZoneWatering(z3, 1, 'Выход из простоя: начат полив К4') : z1 && setZoneWatering(z1, 3, 'Переход на участок 3 (К6)')),
+            () => z1 && setZoneWatering(z1, 3, 'Переход полива на выход К6'),
+            () => (z4 ? setZoneIdle(z4, 'Полив К6 завершен, переход в простой') : z1 && setZoneIdle(z1, 'Полив завершен, переход в простой')),
+            () => z1 && setZoneIdle(z1, 'Цикл завершен, зона в простое'),
+            () => z2 && setZoneIdle(z2, 'Связь с ША-У восстановлена, простой'),
+            () => z2 && setZoneWatering(z2, 1, 'Начат полив участка 1 (К4)'),
+            () => (z3 ? setZoneIdle(z3, 'Полив К4 завершен, простой') : z2 && setZoneIdle(z2, 'Полив завершен, простой')),
+            () => (z4 ? setZoneWatering(z4, 4, 'Начат полив участка 4 (К7)') : z1 && setZoneWatering(z1, 2, 'Начат полив участка 2 (К5)')),
+            () => z2 && setZoneOffline(z2)
+          ];
+
+      const fn = actions[scriptStep % actions.length];
+      scriptStep += 1;
+      const evt = fn?.();
+      if (evt) {
+        liveEvent = evt;
+        changedZoneIds.push(evt.zoneId);
+      }
+    }
+
+    return {
+      snapshot: normalizeSnapshot(raw),
+      liveEvent,
+      changedZoneIds
+    };
+  }
+
+  return {
+    getInitial: () => normalizeSnapshot(raw),
+    step
+  };
+}
+
 export function createMockAdapter({ label = 'Синтетика (Mock A)' } = {}) {
   return {
     id: 'mock',
@@ -439,6 +701,18 @@ export function createMockAdapter({ label = 'Синтетика (Mock A)' } = {}
     async getSnapshot({ siteId = SITES[0].id, scenarioId = 'incident' } = {}) {
       const raw = buildScenarioRaw(siteId, scenarioId, label);
       return normalizeSnapshot(raw);
+    },
+    subscribe({ siteId = SITES[0].id, scenarioId = 'incident', intervalMs = 1000, onUpdate } = {}) {
+      const sim = createLiveSimulator(siteId, scenarioId, label);
+      let stopped = false;
+      const timer = setInterval(() => {
+        if (stopped || typeof onUpdate !== 'function') return;
+        onUpdate(sim.step());
+      }, intervalMs);
+      return () => {
+        stopped = true;
+        clearInterval(timer);
+      };
     },
     async getFleetSnapshots({ scenarioId = 'incident' } = {}) {
       const fleetSpecs = [

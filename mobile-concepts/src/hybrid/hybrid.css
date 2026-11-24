@@ -568,12 +568,65 @@ p, li { text-wrap: pretty; }
   padding: 2px 6px;
   border-radius: 5px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hb-zcard__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
 }
 
 .hb-zcard__badge--ok { background: rgba(255, 255, 255, 0.16); color: #e2f8ec; }
+.hb-zcard__badge--ok .hb-zcard__dot { background: #58d194; }
 .hb-zcard__badge--water { background: rgba(255, 255, 255, 0.22); color: #ffffff; }
+.hb-zcard__badge--water .hb-zcard__dot { background: #7cb6ff; }
 .hb-zcard__badge--warn { background: rgba(245, 179, 66, 0.26); color: #ffe7b8; }
+.hb-zcard__badge--warn .hb-zcard__dot { background: #f5b342; }
 .hb-zcard__badge--danger { background: rgba(255, 120, 88, 0.3); color: #ffe1d9; }
+.hb-zcard__badge--danger .hb-zcard__dot { background: #ff8668; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hb-zcard__badge--water .hb-zcard__dot {
+    animation: hbLiveDot 1.3s ease-in-out infinite;
+  }
+  .hb-zcard__badge--ok .hb-zcard__dot {
+    animation: hbIdleBreath 3.2s ease-in-out infinite;
+  }
+  .hb-zcard--updated {
+    animation: hbCardPacketIn 0.56s cubic-bezier(0.22, 1.2, 0.36, 1) 1;
+  }
+  .hb-zseg--active {
+    background: linear-gradient(90deg, #5ca2ff 0%, #b5d7ff 50%, #5ca2ff 100%);
+    background-size: 200% 100%;
+    animation: hbFlowSegment 1.8s linear infinite;
+  }
+}
+
+@keyframes hbLiveDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.55; }
+}
+
+@keyframes hbIdleBreath {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.38; }
+}
+
+@keyframes hbFlowSegment {
+  0% { background-position: 200% 0; }
+  100% { background-position: 0% 0; }
+}
+
+@keyframes hbCardPacketIn {
+  0% { transform: scale(0.975); border-color: #ffffff; }
+  45% { transform: scale(1.018); border-color: #ffffff; }
+  100% { transform: scale(1); }
+}
 
 .hb-zcard__main {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -2314,6 +2367,113 @@ html[data-motion="paused"] *::before,
 html[data-motion="paused"] *::after {
   animation-play-state: paused !important;
   transition-duration: 0.01ms !important;
+}
+
+/* Живая симуляция: кнопка Live/Пауза в шапке и всплывающий тост событий */
+.hb-live-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(15, 34, 27, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #eef7f2;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.18s ease;
+}
+
+.hb-live-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hb-live-toggle.is-paused {
+  opacity: 0.82;
+  border-style: dashed;
+}
+
+.hb-beacon--paused .hb-beacon__dot {
+  background: #9bb0a5;
+}
+
+.hb-live-toast {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  z-index: 25;
+  align-self: center;
+  margin: 0 12px -40px;
+  max-width: calc(100% - 24px);
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: rgba(13, 32, 25, 0.9);
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 12px 26px -8px rgba(4, 14, 10, 0.65);
+  cursor: pointer;
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 0.22s ease, translate 0.28s cubic-bezier(0.22, 1.15, 0.36, 1);
+}
+
+@media (max-width: 819px) {
+  .hb-live-toast {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .hb-live-toast {
+      opacity: 0;
+      translate: 0 -10px;
+    }
+  }
+}
+
+.hb-live-toast__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #58d194;
+}
+
+.hb-live-toast--water { border-color: rgba(124, 182, 255, 0.65); }
+.hb-live-toast--water .hb-live-toast__dot { background: #7cb6ff; }
+.hb-live-toast--danger { border-color: rgba(255, 134, 104, 0.72); }
+.hb-live-toast--danger .hb-live-toast__dot { background: #ff8668; }
+
+.hb-live-toast__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hb-live-toast__arrow {
+  opacity: 0.78;
+  flex-shrink: 0;
+}
+
+/* На ежесекундных тиках не перепроигрываем появление списка событий */
+.hb-screen--live-tick .hb-event {
+  transition: none;
 }
 
 @media (forced-colors: active) {

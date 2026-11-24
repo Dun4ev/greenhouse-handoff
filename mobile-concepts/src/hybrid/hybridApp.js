@@ -1,7 +1,7 @@
 // Интерактивный мобильный прототип-гибрид 2B (Стекло и ботаника) + 2C (График поливов и счетчики)
 // + нижний плавающий док в стиле Cultiveq с просмотром всех точек полива и выезжающим компактным графиком.
 
-import { createDataProvider } from '../data/provider.js';
+import { createDataProvider } from '../data/provider.js?v=4';
 import { clear, el, svgEl } from '../ui/dom.js';
 
 const DEMO_SITES = [
@@ -149,7 +149,7 @@ function summarizeHeaderStatus(snapshot) {
   return { pills, beaconTone };
 }
 
-function renderCompactZoneCard(zone, isSelected, isJumpFocus, onSelect) {
+function renderCompactZoneCard(zone, isSelected, isJumpFocus, isUpdated, onSelect) {
   const isWatering = zone.watering.state === 'watering';
   const isUnknown = !zone.telemetryReliable;
 
@@ -169,7 +169,7 @@ function renderCompactZoneCard(zone, isSelected, isJumpFocus, onSelect) {
         ? 'Устарел'
         : isWatering
           ? 'Полив'
-          : 'Норма';
+          : 'Простой';
 
   const shortAge = zone.telemetry.ageLabel.replace(/\s*назад$/, '');
 
@@ -204,7 +204,7 @@ function renderCompactZoneCard(zone, isSelected, isJumpFocus, onSelect) {
     'button',
     {
       type: 'button',
-      className: `hb-zcard ${toneClass} ${isSelected ? 'hb-zcard--selected' : ''} ${isJumpFocus ? 'hb-zcard--jump-focus' : ''}`,
+      className: `hb-zcard ${toneClass} ${isSelected ? 'hb-zcard--selected' : ''} ${isJumpFocus ? 'hb-zcard--jump-focus' : ''} ${isUpdated ? 'hb-zcard--updated' : ''}`,
       'aria-pressed': String(isSelected),
       onClick: () => onSelect(zone.id)
     },
@@ -212,7 +212,12 @@ function renderCompactZoneCard(zone, isSelected, isJumpFocus, onSelect) {
       'span',
       { className: 'hb-zcard__top' },
       el('span', { className: 'hb-zcard__name' }, zone.name),
-      el('span', { className: `hb-zcard__badge hb-zcard__badge--${zone.trustLevel === 'ok' && isWatering ? 'water' : zone.trustLevel}` }, statusText)
+      el(
+        'span',
+        { className: `hb-zcard__badge hb-zcard__badge--${zone.trustLevel === 'ok' && isWatering ? 'water' : zone.trustLevel}` },
+        el('i', { className: 'hb-zcard__dot', 'aria-hidden': 'true' }),
+        statusText
+      )
     ),
     el('span', { className: 'hb-zcard__main' }, primaryLine),
     el('span', { className: 'hb-zcard__sub' }, secondaryLine),
@@ -921,6 +926,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     settingsOpen: false,
     sheetExpanded: false,
     motionPaused: false,
+    liveEnabled: true,
     theme: loadSavedTheme(),
     callContact: loadCallContact()
   };
@@ -936,6 +942,12 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   let justJumpedZoneId = null;
   let pendingSheetFromTop = null;
   let sheetAnimatingZones = false;
+  let unsubscribeLive = null;
+  let liveNotice = null;
+  let liveNoticeTimer = null;
+  let updatedZoneIds = new Set();
+  let isInteracting = false;
+  let pendingLivePayload = null;
   const announcer = el('p', { className: 'visually-hidden', 'aria-live': 'polite' });
 
   function isMotionAllowed() {
@@ -1116,11 +1128,71 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   function closeSettings() {
     if (!state.settingsOpen) return;
     state.settingsOpen = false;
-    render();
+    if (pendingLivePayload) {
+      const payload = pendingLivePayload;
+      pendingLivePayload = null;
+      applyLivePayload(payload);
+    } else {
+      render();
+    }
     announce('Настройки закрыты');
     requestAnimationFrame(() => {
       root.querySelector('.hb-settings-btn')?.focus();
     });
+  }
+
+  function applyLivePayload(payload) {
+    if (!payload?.snapshot) return;
+    snapshot = payload.snapshot;
+    updatedZoneIds = new Set(payload.changedZoneIds || []);
+    if (payload.liveEvent) {
+      liveNotice = payload.liveEvent;
+      if (liveNoticeTimer) clearTimeout(liveNoticeTimer);
+      liveNoticeTimer = setTimeout(() => {
+        liveNotice = null;
+        if (!state.settingsOpen && !isInteracting) {
+          render({ isLiveTick: true });
+        }
+      }, 4200);
+    }
+    render({ isLiveTick: true });
+  }
+
+  function stopLiveSubscription() {
+    if (typeof unsubscribeLive === 'function') {
+      unsubscribeLive();
+      unsubscribeLive = null;
+    }
+  }
+
+  function startLiveSubscription() {
+    stopLiveSubscription();
+    if (!state.liveEnabled || typeof provider.subscribe !== 'function') return;
+    unsubscribeLive = provider.subscribe({
+      siteId: state.siteId,
+      scenarioId: state.scenarioId,
+      intervalMs: 1000,
+      onUpdate: (payload) => {
+        if (state.settingsOpen || isInteracting) {
+          pendingLivePayload = payload;
+          return;
+        }
+        applyLivePayload(payload);
+      }
+    });
+  }
+
+  function toggleLive() {
+    state.liveEnabled = !state.liveEnabled;
+    if (state.liveEnabled) {
+      startLiveSubscription();
+      announce('Симуляция в реальном времени включена');
+    } else {
+      stopLiveSubscription();
+      liveNotice = null;
+      announce('Симуляция поставлена на паузу');
+    }
+    render({ isLiveTick: true });
   }
 
   function setTheme(theme) {
@@ -1145,6 +1217,9 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   }
 
   async function loadSnapshot() {
+    stopLiveSubscription();
+    liveNotice = null;
+    pendingLivePayload = null;
     snapshot = await provider.getSnapshot({
       siteId: state.siteId,
       scenarioId: state.scenarioId
@@ -1154,6 +1229,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       state.activeTab = 'all';
     }
     render();
+    startLiveSubscription();
   }
 
   function buildDemoBar() {
@@ -1253,8 +1329,9 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     );
   }
 
-  function render() {
+  function render({ isLiveTick = false } = {}) {
     if (!snapshot) return;
+    const prevScreenScrollTop = root.querySelector('.hb-screen')?.scrollTop ?? 0;
     prevDockRect = captureActiveBox('.hb-dock', '.hb-dock__btn[aria-pressed="true"]') ?? prevDockRect;
     prevTabRect = captureActiveBox('.hb-tabs', '.hb-tab[aria-pressed="true"]') ?? prevTabRect;
 
@@ -1273,6 +1350,8 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     justJumpedZoneId = null;
     const animatePulseBars = justOpenedPulse;
     justOpenedPulse = false;
+    const currentUpdatedIds = updatedZoneIds;
+    updatedZoneIds = new Set();
 
     const topTelHref = sanitizeTelHref(state.callContact.phone);
     const topCallControl = topTelHref
@@ -1311,6 +1390,24 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       makeIcon('settings')
     );
 
+    const liveToggleBtn = el(
+      'button',
+      {
+        type: 'button',
+        className: `hb-live-toggle ${state.liveEnabled ? 'is-live' : 'is-paused'}`,
+        'aria-pressed': String(state.liveEnabled),
+        title: state.liveEnabled ? 'Поставить симуляцию на паузу' : 'Возобновить симуляцию',
+        onClick: toggleLive
+      },
+      el(
+        'span',
+        { className: `hb-beacon hb-beacon--${state.liveEnabled ? beaconTone : 'paused'}`, 'aria-hidden': 'true' },
+        state.liveEnabled ? el('span', { className: 'hb-beacon__ring' }) : null,
+        el('span', { className: 'hb-beacon__dot' })
+      ),
+      el('span', null, state.liveEnabled ? 'Live' : 'Пауза')
+    );
+
     const appHeader = el(
       'div',
       { className: 'hb-topbar' },
@@ -1323,12 +1420,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       el(
         'div',
         { className: 'hb-status-cluster' },
-        el(
-          'span',
-          { className: `hb-beacon hb-beacon--${beaconTone}`, 'aria-hidden': 'true' },
-          el('span', { className: 'hb-beacon__ring' }),
-          el('span', { className: 'hb-beacon__dot' })
-        ),
+        liveToggleBtn,
         pills.map((p) => el('span', { className: `hb-pill hb-pill--${p.tone}` }, p.text)),
         el('div', { className: 'hb-top-actions' }, topCallControl, settingsBtn)
       )
@@ -1342,7 +1434,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
         'aria-label': 'Зоны теплицы'
       },
       snapshot.zones.map((z) =>
-        renderCompactZoneCard(z, state.selectedZoneId === z.id, jumpFocusId === z.id, selectZone)
+        renderCompactZoneCard(z, state.selectedZoneId === z.id, jumpFocusId === z.id, currentUpdatedIds.has(z.id), selectZone)
       )
     );
 
@@ -1380,6 +1472,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     const finishSheetDrag = (commit) => {
       if (!sheetDragging) return;
       sheetDragging = false;
+      isInteracting = false;
       const sheetEl = root.querySelector('.hb-sheet');
       const zonesEl = root.querySelector('.hb-zones-grid');
 
@@ -1427,6 +1520,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
         onPointerdown: (e) => {
           if (e.pointerType === 'mouse' && e.button !== 0) return;
           sheetDragging = true;
+          isInteracting = true;
           sheetStartY = e.clientY;
           sheetLastDy = 0;
           sheetLastOffset = 0;
@@ -1580,6 +1674,24 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       )
     );
 
+    const liveToastEl = liveNotice
+      ? el(
+          'button',
+          {
+            type: 'button',
+            className: `hb-live-toast hb-live-toast--${liveNotice.tone}`,
+            onClick: () => {
+              const targetZoneId = liveNotice.zoneId;
+              liveNotice = null;
+              jumpToZone(targetZoneId);
+            }
+          },
+          el('span', { className: 'hb-live-toast__dot', 'aria-hidden': 'true' }),
+          el('span', { className: 'hb-live-toast__text' }, liveNotice.text),
+          el('span', { className: 'hb-live-toast__arrow', 'aria-hidden': 'true' }, '→')
+        )
+      : null;
+
     const phoneStage = el(
       'main',
       { id: 'main-content', className: 'hb-phone-stage', tabindex: '-1' },
@@ -1595,7 +1707,10 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
         ),
         el(
           'div',
-          { className: `hb-screen ${state.pulseDrawerOpen ? 'hb-screen--drawer-open' : ''}` },
+          {
+            className: `hb-screen ${state.pulseDrawerOpen ? 'hb-screen--drawer-open' : ''} ${isLiveTick ? 'hb-screen--live-tick' : ''}`
+          },
+          liveToastEl,
           heroTop,
           whiteSheet,
           bottomOverlay,
@@ -1643,8 +1758,13 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       )
     );
 
-    prevDockRect = syncSlidingIndicator('.hb-dock', '.hb-dock__indicator', '.hb-dock__btn[aria-pressed="true"]', prevDockRect);
-    prevTabRect = syncSlidingIndicator('.hb-tabs', '.hb-tabs__indicator', '.hb-tab[aria-pressed="true"]', prevTabRect);
+    if (prevScreenScrollTop > 0) {
+      const nextScreen = root.querySelector('.hb-screen');
+      if (nextScreen) nextScreen.scrollTop = prevScreenScrollTop;
+    }
+
+    prevDockRect = syncSlidingIndicator('.hb-dock', '.hb-dock__indicator', '.hb-dock__btn[aria-pressed="true"]', isLiveTick ? null : prevDockRect);
+    prevTabRect = syncSlidingIndicator('.hb-tabs', '.hb-tabs__indicator', '.hb-tab[aria-pressed="true"]', isLiveTick ? null : prevTabRect);
 
     if (pendingSheetFromTop !== null) {
       const fromTop = pendingSheetFromTop;
