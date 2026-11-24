@@ -1,0 +1,128 @@
+.b-zones {
+  display: grid;
+  gap: 12px;
+}
+
+.b-zone {
+  --b-zone-accent: #46516e;
+  --b-zone-tint: #edf0f5;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.b-zone--watering {
+  --b-zone-accent: var(--water);
+  --b-zone-tint: #e8eeff;
+}
+
+.b-zone--stale {
+  --b-zone-accent: var(--warn);
+  --b-zone-tint: var(--warn-bg);
+}
+
+.b-zone-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 13px 0;
+}
+
+.b-zone-head h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 750;
+}
+
+.b-capacity {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.b-zone-status {
+  margin: 8px 12px 0;
+  border-inline-start: 3px solid var(--b-zone-accent);
+  border-radius: 2px;
+  padding: 7px 9px;
+  background: var(--b-zone-tint);
+  color: var(--b-zone-accent);
+  font-size: clamp(19px, 5.4vw, 23px);
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+.b-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.b-metrics > div {
+  min-width: 0;
+  padding-inline: 7px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.b-metrics > div:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+
+.b-metrics > div:last-child {
+  padding-inline-end: 0;
+}
+
+.b-metrics dt {
+  min-block-size: 2.2em;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.b-metrics dd {
+  margin: 0;
+  font-size: clamp(12px, 3.55vw, 15px);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.b-zone--stale .b-metrics dd {
+  color: var(--muted);
+}
+
+.b-freshness {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  padding: 7px 12px;
+  background: #f7f8fa;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.b-freshness time {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.b-zone--stale .b-freshness {
+  background: var(--b-zone-tint);
+  color: var(--b-zone-accent);
+}
+
+.b-zone--stale .b-freshness > span:last-child {
+  font-weight: 700;
+}

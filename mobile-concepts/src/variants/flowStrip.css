@@ -1,0 +1,604 @@
+/* Вариант 1: Гидравлическая лента (инженерный дневной прибор + иллюстрация и живая анимация тракта) */
+.v-flowstrip {
+  --fs-bg: #f3f0e8;
+  --fs-surface: #ffffff;
+  --fs-ink: #161b26;
+  --fs-muted: #505768;
+  --fs-border: #b8becb;
+  --fs-border-soft: #d7dbe3;
+  --fs-water: #1f46bf;
+  --fs-water-bg: #e9effd;
+  --fs-copper: #a23716;
+  --fs-copper-bg: #fdf0ea;
+  --fs-amber: #874e0b;
+  --fs-amber-bg: #fdf5e4;
+  --fs-ok: #1b6043;
+  --fs-ok-bg: #e7f4ee;
+  container: flowstrip / inline-size;
+  background: var(--fs-bg);
+  color: var(--fs-ink);
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--fs-border);
+  display: grid;
+  gap: 11px;
+}
+
+/* Инженерная шапка с иллюстрацией */
+.fs-hero {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--fs-border);
+  min-block-size: 126px;
+  display: grid;
+  align-items: end;
+  background: #233354;
+}
+
+.fs-hero.fs-ticker--ok { border-color: #679c84; }
+.fs-hero.fs-ticker--warn { border-color: var(--fs-amber); }
+.fs-hero.fs-ticker--danger { border-color: var(--fs-copper); }
+
+.fs-hero__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 64%;
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-hero__img {
+    animation: fsHeroBreath 14s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes fsHeroBreath {
+  from { transform: scale(1); }
+  to { transform: scale(1.045); }
+}
+
+.fs-hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(16, 23, 38, 0.04) 0%,
+    rgba(16, 23, 38, 0.28) 44%,
+    rgba(14, 20, 35, 0.88) 100%
+  );
+}
+
+.fs-hero__overlay {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 12px;
+  color: #ffffff;
+}
+
+.fs-ticker__left { min-inline-size: 0; }
+
+.fs-hero__kicker {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #d6e2ff;
+}
+
+.fs-hero__summary {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.28;
+  color: #ffffff;
+  text-wrap: pretty;
+}
+
+.fs-hero__clock {
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: rgba(15, 22, 38, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 7px;
+  padding: 4px 8px;
+}
+
+.fs-hero__clock strong {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 17px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.fs-hero__clock span {
+  font-size: 10px;
+  color: #cfd9f2;
+}
+
+.fs-circuits {
+  display: grid;
+  gap: 11px;
+}
+
+.fs-circuit {
+  background: var(--fs-surface);
+  border: 1.5px solid var(--fs-border);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 9px;
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 0.26s ease-out, translate 0.26s ease-out, box-shadow 0.2s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .fs-circuit {
+      opacity: 0;
+      translate: 0 8px;
+    }
+  }
+}
+
+.fs-circuit--watering {
+  border-color: var(--fs-water);
+  box-shadow: inset 0 3px 0 0 var(--fs-water), 0 6px 16px -10px rgba(31, 70, 191, 0.45);
+}
+
+.fs-circuit--stale {
+  border-color: var(--fs-amber);
+  box-shadow: inset 0 3px 0 0 var(--fs-amber);
+}
+
+.fs-circuit--offline {
+  border-color: var(--fs-copper);
+  box-shadow: inset 0 3px 0 0 var(--fs-copper);
+}
+
+.fs-circuit__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.fs-circuit__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.fs-circuit__sub {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--fs-muted);
+}
+
+.fs-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.fs-pill--ok { background: var(--fs-ok-bg); color: var(--fs-ok); border-color: #9ecbb6; }
+.fs-pill--water { background: var(--fs-water); color: #ffffff; }
+.fs-pill--warn { background: var(--fs-amber-bg); color: var(--fs-amber); border-color: #d7ad63; }
+.fs-pill--danger { background: var(--fs-copper); color: #ffffff; }
+
+.fs-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.fs-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--fs-border-soft);
+  background: #f7f8fa;
+  color: var(--fs-ink);
+}
+
+.fs-chip--online { border-color: #9ecbb6; background: var(--fs-ok-bg); color: var(--fs-ok); }
+.fs-chip--offline { border-color: #df9c84; background: var(--fs-copper-bg); color: var(--fs-copper); }
+.fs-chip--fresh { border-color: #b7c4e9; background: #f2f5fc; color: #20377a; }
+.fs-chip--stale { border-color: #d7ad63; background: var(--fs-amber-bg); color: var(--fs-amber); }
+
+.fs-caution {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 650;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1px dashed currentColor;
+}
+
+.fs-caution--warn { background: var(--fs-amber-bg); color: var(--fs-amber); }
+.fs-caution--danger { background: var(--fs-copper-bg); color: var(--fs-copper); }
+
+/* Гидравлическая схема тракта */
+.fs-schematic {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1.05fr) 22px minmax(0, 1.15fr);
+  align-items: center;
+  gap: 2px;
+  padding: 9px 7px;
+  background: #f7f6f2;
+  border: 1px solid var(--fs-border-soft);
+  border-radius: 8px;
+}
+
+@container flowstrip (inline-size < 306px) {
+  .fs-schematic {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .fs-pipe-svg {
+    width: 32px;
+    height: 14px;
+    margin: 0 auto;
+    transform: rotate(90deg);
+  }
+}
+
+.fs-node {
+  min-inline-size: 0;
+  background: #ffffff;
+  border: 1.5px solid var(--fs-border);
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+  position: relative;
+}
+
+.fs-node--water {
+  border-color: var(--fs-water);
+  background: var(--fs-water-bg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-node--pulse {
+    animation: fsNodePulse 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes fsNodePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(31, 70, 191, 0.28); }
+  50% { box-shadow: 0 0 0 5px rgba(31, 70, 191, 0); }
+}
+
+.fs-node--broken {
+  border-style: dashed;
+  border-color: var(--fs-copper);
+  background: repeating-linear-gradient(
+    -45deg,
+    #fff8f5,
+    #fff8f5 5px,
+    #fae9e2 5px,
+    #fae9e2 10px
+  );
+}
+
+.fs-node__code {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--fs-ink);
+  overflow-wrap: break-word;
+}
+
+.fs-node--water .fs-node__code { color: var(--fs-water); }
+.fs-node--broken .fs-node__code { color: var(--fs-copper); }
+
+.fs-node__val {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--fs-muted);
+  overflow-wrap: break-word;
+}
+
+.fs-pipe-svg {
+  width: 100%;
+  height: 18px;
+  display: block;
+}
+
+.fs-pipe-track {
+  stroke: #9aa3b2;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.fs-pipe-arrow {
+  fill: none;
+  stroke: #727b8c;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fs-pipe-svg--active .fs-pipe-track { stroke: #b8caf8; }
+.fs-pipe-svg--active .fs-pipe-arrow { stroke: var(--fs-water); }
+
+.fs-pipe-flow {
+  stroke: var(--fs-water);
+  stroke-width: 3.5;
+  stroke-dasharray: 8 6;
+  stroke-linecap: round;
+}
+
+.fs-pipe-droplet {
+  fill: #4f82ff;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-pipe-flow {
+    animation: fsFlowDash 0.95s linear infinite;
+  }
+  .fs-pipe-droplet {
+    animation: fsDropletTravel 1.6s ease-in-out infinite;
+  }
+  .fs-pipe-break {
+    transform-origin: 32px 10px;
+    animation: fsBreakPulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes fsFlowDash {
+  to { stroke-dashoffset: -14; }
+}
+
+@keyframes fsDropletTravel {
+  0% { transform: translateX(0); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(42px); opacity: 0; }
+}
+
+@keyframes fsBreakPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.9); }
+}
+
+.fs-pipe-dash {
+  stroke: var(--fs-copper);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 4;
+}
+
+.fs-pipe-break {
+  stroke: var(--fs-copper);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+/* Гребенка клапанов */
+.fs-valves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.fs-valves--n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fs-valves--n6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+@container flowstrip (inline-size < 306px) {
+  .fs-valves--n6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.fs-valve {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  padding: 5px 3px;
+  text-align: center;
+  background: #fafbfc;
+}
+
+.fs-valve--active {
+  background: linear-gradient(135deg, #1b3fb5 0%, #2a59e0 100%);
+  border-color: var(--fs-water);
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-valve--active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.25) 50%, transparent 75%);
+    transform: translateX(-100%);
+    animation: fsValveShimmer 2.8s ease-in-out infinite;
+  }
+}
+
+@keyframes fsValveShimmer {
+  0%, 30% { transform: translateX(-100%); }
+  75%, 100% { transform: translateX(120%); }
+}
+
+.fs-valve--unknown {
+  border-style: dashed;
+  border-color: #c9866e;
+  background: repeating-linear-gradient(
+    -45deg,
+    #fffaf7,
+    #fffaf7 4px,
+    #f7eae4 4px,
+    #f7eae4 8px
+  );
+  color: var(--fs-copper);
+}
+
+.fs-valve__code {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fs-valve__state {
+  display: block;
+  font-size: 10px;
+  line-height: 1.2;
+  margin-top: 1px;
+  color: var(--fs-muted);
+}
+
+.fs-valve--active .fs-valve__state { color: #e4ecff; font-weight: 650; }
+.fs-valve--unknown .fs-valve__state { color: var(--fs-copper); font-weight: 700; }
+
+/* Паспорт пакета (<details> по modern-web-guidance/accordion) */
+.fs-passport {
+  border-top: 1px solid var(--fs-border-soft);
+  padding-top: 5px;
+}
+
+.fs-passport__summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-block-size: 36px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--fs-water);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 2px;
+}
+
+@media (pointer: coarse) {
+  .fs-passport__summary { min-block-size: 44px; }
+}
+
+.fs-passport__summary::-webkit-details-marker { display: none; }
+
+.fs-passport__summary::before {
+  content: "";
+  inline-size: 0.72em;
+  block-size: 0.72em;
+  flex-shrink: 0;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  margin-inline-start: 2px;
+}
+
+.fs-passport[open] > .fs-passport__summary::before {
+  transform: rotate(45deg) translateY(-2px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-passport__summary::before { transition: transform 0.2s ease; }
+  .fs-passport::details-content {
+    interpolate-size: allow-keywords;
+    overflow: clip;
+    contain: layout;
+    transition: block-size 0.26s ease, content-visibility 0.26s ease;
+    transition-behavior: allow-discrete;
+  }
+  .fs-passport:not([open])::details-content { block-size: 0; }
+}
+
+.fs-passport__body {
+  padding-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.fs-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  background: #f6f7f9;
+  border: 1px solid var(--fs-border-soft);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.fs-dl > div { min-inline-size: 0; }
+.fs-dl dt { font-size: 10px; color: var(--fs-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.fs-dl dd {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.fs-mini-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fs-mini-log__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #f8f9fb;
+  border-left: 3px solid var(--fs-border);
+}
+
+.fs-mini-log__item--warning,
+.fs-mini-log__item--gap { border-left-color: var(--fs-copper); background: var(--fs-copper-bg); }
+.fs-mini-log__item--late { border-left-color: var(--fs-amber); background: var(--fs-amber-bg); }
+
+.fs-mini-log__time {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--fs-muted);
+  white-space: nowrap;
+}
+
+.fs-hw-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fs-muted);
+  text-wrap: pretty;
+}
+
+@media (forced-colors: active) {
+  .fs-circuit, .fs-node, .fs-valve { border-color: CanvasText; }
+  .fs-valve--active { background: Highlight; color: HighlightText; }
+}

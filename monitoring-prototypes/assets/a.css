@@ -1,0 +1,133 @@
+.a-monitor {
+  display: grid;
+  gap: 22px;
+}
+
+.a-monitor h2,
+.a-monitor h3,
+.a-monitor p {
+  margin: 0;
+}
+
+.a-overview {
+  padding: 12px 14px;
+  border-inline-start: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface);
+}
+
+.a-overview h2 {
+  color: var(--accent);
+  font-size: 1.0625rem;
+  font-weight: 670;
+  line-height: 1.3;
+}
+
+.a-overview--stale {
+  padding-block: 16px;
+  border-inline-start-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.a-overview--stale h2 {
+  color: var(--warn);
+  font-size: clamp(1.375rem, 6.5vw, 1.625rem);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+}
+
+.a-monitor .a-overview__packet {
+  margin-block-start: 8px;
+  color: var(--warn);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.a-monitor time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.a-monitor .a-monitor__heading {
+  margin-block-end: 8px;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.a-monitor__zones {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.a-zone {
+  display: grid;
+  gap: 4px;
+  padding-block: 12px;
+}
+
+.a-zone + .a-zone {
+  border-block-start: 1px solid var(--line);
+}
+
+.a-zone__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 3px;
+}
+
+.a-zone__heading h3 {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.a-zone__status {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.a-zone--watering .a-zone__status {
+  color: var(--water);
+}
+
+.a-zone--stale .a-zone__status {
+  color: var(--warn);
+}
+
+.a-zone__reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding-block: 2px;
+}
+
+.a-zone__elapsed {
+  color: var(--water);
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.a-zone__detail,
+.a-zone__flow {
+  color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.a-zone__packet {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}

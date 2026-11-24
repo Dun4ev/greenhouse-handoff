@@ -1,0 +1,584 @@
+/* Вариант 3: Карманный журнал ("На ходу" + Инспектор достоверности + ботаническая иллюстрация) */
+.v-glancejournal {
+  --gj-paper: #faf6ee;
+  --gj-surface: #ffffff;
+  --gj-ink: #1e1a24;
+  --gj-muted: #585161;
+  --gj-border: #cbc3b8;
+  --gj-border-soft: #e3dcd2;
+  --gj-plum: #851e45;
+  --gj-plum-bg: #f9edf2;
+  --gj-water: #1c44ad;
+  --gj-water-bg: #eaf0ff;
+  --gj-ochre: #874e09;
+  --gj-ochre-bg: #fef4e2;
+  --gj-rust: #a33216;
+  --gj-rust-bg: #fceee9;
+  --gj-ok: #1d6245;
+  --gj-ok-bg: #e7f4ed;
+  container: glancejournal / inline-size;
+  background: var(--gj-paper);
+  color: var(--gj-ink);
+  border: 1px solid var(--gj-border);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Теплая ботаническая иллюстрация в шапке */
+.gj-hero {
+  position: relative;
+  min-block-size: 122px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid #bdaea0;
+  display: grid;
+  align-items: end;
+  background: #2f2523;
+}
+
+.gj-hero__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 68%;
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gj-hero__img {
+    animation: gjHeroDrift 16s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes gjHeroDrift {
+  from { transform: scale(1) translateY(0); }
+  to { transform: scale(1.05) translateY(-3px); }
+}
+
+.gj-hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(34, 18, 28, 0.04) 0%,
+    rgba(30, 17, 25, 0.24) 44%,
+    rgba(28, 15, 23, 0.88) 100%
+  );
+}
+
+.gj-hero__overlay {
+  position: relative;
+  z-index: 1;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  color: #ffffff;
+}
+
+.gj-hero__kicker {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #f9d8e4;
+}
+
+.gj-hero__title {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.gj-hero__clock {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 16px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  background: rgba(133, 30, 69, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: #ffffff;
+}
+
+.gj-sites {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@container glancejournal (inline-size < 305px) {
+  .gj-sites { grid-template-columns: 1fr; }
+}
+
+.gj-site-btn {
+  min-block-size: 36px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1.5px solid var(--gj-border);
+  background: var(--gj-surface);
+  color: var(--gj-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+@media (pointer: coarse) {
+  .gj-site-btn { min-block-size: 44px; }
+}
+
+.gj-site-btn[aria-pressed="true"] {
+  border-color: var(--gj-plum);
+  background: var(--gj-plum-bg);
+  color: var(--gj-plum);
+}
+
+.gj-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gj-border-soft);
+}
+
+.gj-topbar__kicker {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gj-muted);
+}
+
+.gj-topbar__clock {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.gj-density {
+  display: inline-flex;
+  background: #ede6da;
+  border: 1px solid var(--gj-border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.gj-density__btn {
+  min-block-size: 34px;
+  padding: 4px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gj-ink);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+@media (pointer: coarse) {
+  .gj-density__btn { min-block-size: 44px; }
+}
+
+.gj-density__btn[aria-pressed="true"] {
+  background: var(--gj-plum);
+  color: #ffffff;
+}
+
+.gj-tickets {
+  display: grid;
+  gap: 10px;
+}
+
+.gj-ticket {
+  display: grid;
+  grid-template-columns: 11px minmax(0, 1fr);
+  background: var(--gj-surface);
+  border: 1.5px solid var(--gj-border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gj-ticket:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px -12px rgba(30, 26, 36, 0.35);
+  }
+}
+
+.gj-spine {
+  background: #9c958c;
+}
+
+.gj-ticket--water { border-color: var(--gj-water); }
+.gj-ticket--water .gj-spine { background: linear-gradient(180deg, #1c44ad 0%, #3d72f0 100%); }
+
+.gj-ticket--warn { border-color: var(--gj-ochre); }
+.gj-ticket--warn .gj-spine {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #d6942a,
+    #d6942a 5px,
+    #fff4de 5px,
+    #fff4de 10px
+  );
+  background-size: 14.1px 14.1px;
+}
+
+.gj-ticket--danger { border-color: var(--gj-rust); }
+.gj-ticket--danger .gj-spine {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--gj-rust),
+    var(--gj-rust) 5px,
+    #fde5dd 5px,
+    #fde5dd 10px
+  );
+  background-size: 14.1px 14.1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gj-ticket--warn .gj-spine,
+  .gj-ticket--danger .gj-spine {
+    animation: gjSpineScroll 3.2s linear infinite;
+  }
+}
+
+@keyframes gjSpineScroll {
+  to { background-position: 0 14.1px; }
+}
+
+.gj-ticket__content {
+  padding: 11px 12px;
+  display: grid;
+  gap: 7px;
+  min-inline-size: 0;
+}
+
+.gj-ticket__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gj-ticket__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--gj-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gj-ticket__cap {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gj-muted);
+}
+
+.gj-glance {
+  display: grid;
+  gap: 2px;
+}
+
+.gj-glance__status {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--gj-ink);
+  text-wrap: balance;
+}
+
+.gj-ticket--water .gj-glance__status { color: var(--gj-water); }
+.gj-ticket--warn .gj-glance__status { color: var(--gj-ochre); }
+.gj-ticket--danger .gj-glance__status { color: var(--gj-rust); }
+
+.gj-glance__metric {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--gj-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Живая волна активного полива */
+.gj-wave {
+  width: 100%;
+  height: 10px;
+  display: block;
+  overflow: hidden;
+}
+
+.gj-wave__path {
+  fill: none;
+  stroke: #4678f0;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gj-wave__path {
+    stroke-dasharray: 120 14;
+    animation: gjWaveFlow 2.6s linear infinite;
+  }
+}
+
+@keyframes gjWaveFlow {
+  to { stroke-dashoffset: -134; }
+}
+
+.gj-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gj-flow-tag,
+.gj-outlet-tag {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--gj-border-soft);
+}
+
+.gj-flow-tag--present { background: var(--gj-water-bg); color: var(--gj-water); border-color: #a9bff4; }
+.gj-flow-tag--absent { background: #f2f0ec; color: var(--gj-ink); }
+.gj-flow-tag--unknown { background: var(--gj-rust-bg); color: var(--gj-rust); border-color: #e4a694; border-style: dashed; }
+.gj-outlet-tag { background: var(--gj-plum-bg); color: var(--gj-plum); border-color: #dfadc0; }
+
+.gj-freshline {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--gj-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gj-freshline--alert {
+  color: var(--gj-rust);
+  font-weight: 650;
+}
+
+.gj-ticket--warn .gj-freshline--alert { color: var(--gj-ochre); }
+
+/* Инспектор достоверности (4 ячейки) */
+.gj-inspector {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--gj-border-soft);
+  padding-top: 9px;
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 0.25s ease-out, translate 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .gj-inspector {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+}
+
+.gj-matrix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@container glancejournal (inline-size < 305px) {
+  .gj-matrix { grid-template-columns: 1fr; }
+}
+
+.gj-cell {
+  border: 1px solid var(--gj-border-soft);
+  border-radius: 7px;
+  padding: 7px 8px;
+  background: #fbfaf7;
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.gj-cell--ok { background: var(--gj-ok-bg); border-color: #9ecbb6; }
+.gj-cell--water { background: var(--gj-water-bg); border-color: #a7bef2; }
+.gj-cell--warn { background: var(--gj-ochre-bg); border-color: #dfb76a; }
+.gj-cell--danger { background: var(--gj-rust-bg); border-color: #df9c84; border-style: dashed; }
+
+.gj-cell__head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gj-cell__num {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gj-muted);
+}
+
+.gj-cell__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--gj-muted);
+}
+
+.gj-cell__val {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--gj-ink);
+}
+
+.gj-cell--ok .gj-cell__val { color: var(--gj-ok); }
+.gj-cell--water .gj-cell__val { color: var(--gj-water); }
+.gj-cell--warn .gj-cell__val { color: var(--gj-ochre); }
+.gj-cell--danger .gj-cell__val { color: var(--gj-rust); }
+
+.gj-cell__sub {
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--gj-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.gj-dedup {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.38;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--gj-ochre-bg);
+  color: var(--gj-ochre);
+  border: 1px solid #dfb76a;
+}
+
+.gj-local {
+  background: #f3eee4;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.38;
+  color: var(--gj-muted);
+}
+
+.gj-local__title {
+  display: block;
+  font-weight: 700;
+  color: var(--gj-ink);
+  margin-bottom: 3px;
+}
+
+.gj-local__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+/* Раскрытие инспектора в режиме "На ходу" */
+.gj-details {
+  border-top: 1px solid var(--gj-border-soft);
+  padding-top: 4px;
+}
+
+.gj-details__summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-block-size: 36px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gj-plum);
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .gj-details__summary { min-block-size: 44px; }
+}
+
+.gj-details__summary::-webkit-details-marker { display: none; }
+
+.gj-details__summary::before {
+  content: "";
+  inline-size: 0.7em;
+  block-size: 0.7em;
+  flex-shrink: 0;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.gj-details[open] > .gj-details__summary::before {
+  transform: rotate(45deg) translateY(-2px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gj-details__summary::before { transition: transform 0.2s ease; }
+  .gj-details::details-content {
+    interpolate-size: allow-keywords;
+    overflow: clip;
+    contain: layout;
+    transition: block-size 0.26s ease, content-visibility 0.26s ease;
+    transition-behavior: allow-discrete;
+  }
+  .gj-details:not([open])::details-content { block-size: 0; }
+}
+
+.gj-details__body { padding-top: 6px; }
+
+.gj-digest {
+  background: var(--gj-surface);
+  border: 1px solid var(--gj-border);
+  border-left: 4px solid var(--gj-plum);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.gj-digest--warning,
+.gj-digest--gap { border-left-color: var(--gj-rust); background: var(--gj-rust-bg); }
+
+.gj-digest__tag {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gj-muted);
+}
+
+.gj-digest__text {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--gj-ink);
+}
+
+@media (forced-colors: active) {
+  .gj-ticket, .gj-cell, .gj-site-btn { border-color: CanvasText; }
+  .gj-density__btn[aria-pressed="true"] { background: Highlight; color: HighlightText; }
+}
