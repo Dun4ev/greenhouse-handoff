@@ -96,8 +96,9 @@ p, li { text-wrap: pretty; }
 @media (min-width: 820px) {
   .hybrid-page {
     max-width: 430px;
+    block-size: min(100dvh, 855px);
     grid-template-columns: minmax(0, 1fr);
-    align-items: start;
+    grid-template-rows: minmax(0, 1fr);
     padding: 22px 12px 26px;
   }
 }
@@ -279,8 +280,17 @@ p, li { text-wrap: pretty; }
   display: none;
 }
 
+.hb-screen {
+  position: relative;
+  background: var(--forest);
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
 @media (min-width: 820px) {
   .hb-device {
+    block-size: 100%;
     background: #141917;
     padding: 10px 9px 11px;
     border-radius: 34px;
@@ -290,6 +300,7 @@ p, li { text-wrap: pretty; }
       0 4px 14px rgba(15, 29, 23, 0.16),
       inset 0 0 0 1px rgba(255, 255, 255, 0.12);
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 8px;
   }
   .hb-device__bar {
@@ -311,8 +322,7 @@ p, li { text-wrap: pretty; }
   }
   .hb-screen {
     border-radius: 24px;
-    height: min(760px, calc(100dvh - 76px));
-    min-block-size: 620px;
+    min-block-size: 0;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
@@ -322,14 +332,6 @@ p, li { text-wrap: pretty; }
   .hb-bottom-dock-wrap::before {
     border-radius: 0 0 24px 24px;
   }
-}
-
-.hb-screen {
-  position: relative;
-  background: var(--forest);
-  display: flex;
-  flex-direction: column;
-  min-block-size: 100dvh;
 }
 
 /* Верхняя ботаническая сцена (2B) */
@@ -1882,6 +1884,7 @@ p, li { text-wrap: pretty; }
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   align-items: center;
   justify-items: center;
 }
@@ -1897,6 +1900,9 @@ p, li { text-wrap: pretty; }
 .hb-settings-drawer {
   width: 100%;
   max-width: 360px;
+  max-block-size: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background:
     linear-gradient(
       142deg,
