@@ -1,7 +1,7 @@
 // Интерактивный мобильный прототип-гибрид 2B (Стекло и ботаника) + 2C (График поливов и счетчики)
 // + нижний плавающий док в стиле Cultiveq с просмотром всех точек полива и выезжающим компактным графиком.
 
-import { createDataProvider } from '../data/provider.js?v=8';
+import { createDataProvider } from '../data/provider.js?v=9';
 import {
   formatShortAge,
   getDict,
@@ -9,13 +9,9 @@ import {
   localizeLiveNotice,
   localizeSnapshot,
   saveLang
-} from './i18n.js?v=8';
+} from './i18n.js?v=9';
+import { openPumpPanel } from './pumpPanel.js?v=9';
 import { clear, el, svgEl } from '../ui/dom.js';
-
-const DEMO_SITES = [
-  { id: 'srb-pilot-1', label: '2 зоны (пилот)' },
-  { id: 'srb-scale-4', label: '4 зоны (проверка масштаба)' }
-];
 
 const THEME_STORAGE_KEY = 'greenhouse_hybrid_theme';
 const CALL_STORAGE_KEY = 'greenhouse_hybrid_call_contact';
@@ -108,6 +104,10 @@ function makeIcon(kind) {
     svg.appendChild(svgEl('rect', { x: '4', y: '11', width: '3.5', height: '9', rx: '1.2' }));
     svg.appendChild(svgEl('rect', { x: '10.25', y: '5', width: '3.5', height: '15', rx: '1.2' }));
     svg.appendChild(svgEl('rect', { x: '16.5', y: '8.5', width: '3.5', height: '11.5', rx: '1.2' }));
+  } else if (kind === 'pump') {
+    svg.appendChild(svgEl('path', { d: 'M2 13h4m12 0h4V6h-4v3M7 21h10M9 18v3m6-3v3' }));
+    svg.appendChild(svgEl('circle', { cx: '12', cy: '13', r: '6' }));
+    svg.appendChild(svgEl('path', { d: 'm10 10 5 3-5 3z', fill: 'currentColor', 'stroke-width': '1' }));
   } else if (kind === 'events') {
     svg.appendChild(svgEl('path', { d: 'M12 4a5.5 5.5 0 0 0-5.5 5.5v3.2L5 15.5h14l-1.5-2.8V9.5A5.5 5.5 0 0 0 12 4Z' }));
     svg.appendChild(svgEl('path', { d: 'M9.5 18.5a2.5 2.5 0 0 0 5 0' }));
@@ -139,7 +139,9 @@ function summarizeHeaderStatus(snapshot, d) {
   const pills = [];
   if (wateringCount > 0) {
     pills.push({ text: d.statusWatering(wateringCount), tone: 'water' });
-  } else if (offlineCount === 0 && staleOnlineCount === 0) {
+  } else if (snapshot.zones.some((zone) => zone.control?.phase === 'switching')) {
+    pills.push({ text: d.outletSwitch, tone: 'warn' });
+  } else if (snapshot.zones.every((zone) => zone.watering.state === 'idle')) {
     pills.push({ text: d.statusIdle, tone: 'ok' });
   }
 
@@ -157,9 +159,23 @@ function summarizeHeaderStatus(snapshot, d) {
   return { pills, beaconTone };
 }
 
+function zoneCardReadings(zone, lang, d) {
+  const age = formatShortAge(zone.telemetry.ageLabel, lang);
+  const watering = zone.watering;
+  const primary = zone.control?.phase === 'switching' ? d.outletSwitch : watering.state === 'unknown'
+    ? `? · ${age}`
+    : watering.state === 'watering'
+      ? [watering.elapsedLabel || d.primaryWaterFallback, watering.activeOutletLabel].filter(Boolean).join(' · ')
+      : d.primaryIdle;
+  if (zone.connection.state === 'offline') return [primary, d.secOffline];
+  if (!zone.telemetryReliable) return [primary, d.secStale];
+  const detail = watering.activeOutlet ? `${watering.activeOutlet}/${zone.outletsTotal}` : age;
+  return [primary, `${d.flowPrefix(zone.flow.label)} · ${detail}`];
+}
+
 function renderCompactZoneCard(zone, isSelected, isJumpFocus, isUpdated, lang, d, onSelect) {
   const isWatering = zone.watering.state === 'watering';
-  const isUnknown = !zone.telemetryReliable;
+  const isUnknown = zone.watering.state === 'unknown';
 
   const toneClass =
     zone.trustLevel === 'danger'
@@ -177,23 +193,9 @@ function renderCompactZoneCard(zone, isSelected, isJumpFocus, isUpdated, lang, d
         ? d.badgeStale
         : isWatering
           ? d.badgeWater
-          : d.badgeIdle;
+          : zone.control?.phase === 'switching' ? d.outletSwitch : isUnknown ? d.waterUnconfirmed : d.badgeIdle;
 
-  const shortAge = formatShortAge(zone.telemetry.ageLabel, lang);
-
-  const primaryLine = isWatering
-    ? `${zone.watering.elapsedLabel || d.primaryWaterFallback} · ${zone.watering.activeOutletLabel}`
-    : isUnknown
-      ? `? · ${shortAge}`
-      : d.primaryIdle;
-
-  const secondaryLine = isWatering
-    ? d.secFlowPresent(zone.watering.activeOutlet, zone.outletsTotal)
-    : zone.connection.state === 'offline'
-      ? d.secOffline
-      : zone.telemetry.freshness !== 'fresh'
-        ? d.secStale
-        : d.secFlowAbsent(shortAge);
+  const [primaryLine, secondaryLine] = zoneCardReadings(zone, lang, d);
 
   const bar = el(
     'span',
@@ -264,7 +266,7 @@ function renderAllOutletsView(snapshot, d, onSelectZone) {
       { className: 'hb-outlets-groups' },
       snapshot.zones.map((zone) => {
         const isWatering = zone.watering.state === 'watering';
-        const isUnknown = !zone.telemetryReliable;
+        const isUnknown = zone.watering.state === 'unknown';
 
         return el(
           'article',
@@ -284,7 +286,7 @@ function renderAllOutletsView(snapshot, d, onSelectZone) {
             el(
               'span',
               { className: 'hb-ogroup__fs' },
-              isUnknown
+              !zone.telemetryReliable
                 ? d.flowUnknownPrefix(zone.connection.label)
                 : d.flowPrefix(zone.flow.label)
             )
@@ -309,7 +311,7 @@ function renderAllOutletsView(snapshot, d, onSelectZone) {
                 el(
                   'span',
                   { className: 'hb-opoint__state' },
-                  isUnknown ? d.outletUnknown : isActive ? (zone.watering.elapsedLabel || d.outletWater) : d.outletClosed
+                  isUnknown ? d.outletUnknown : isActive ? (zone.watering.elapsedLabel || d.outletWater) : d.outletInactive
                 )
               );
             })
@@ -701,7 +703,7 @@ function renderSettingsOverlay(lang, theme, callContact, demoCtx, d, onSelectLan
                   'aria-pressed': String(demoCtx.siteId === s.id),
                   onClick: () => demoCtx.onSelectSite(s.id)
                 },
-                d.siteLabels[s.id] ?? s.label
+                d.siteLabels[s.id] ?? s.shortName ?? s.name
               )
             )
           ),
@@ -721,9 +723,9 @@ function renderSettingsOverlay(lang, theme, callContact, demoCtx, d, onSelectLan
   );
 }
 
-function renderZoneDetailCard(zone, callContact, d, onOpenCallSetup, onClose) {
+function renderZoneDetailCard(zone, callContact, d, onOpenCallSetup, onClose, onOpenPumps) {
   const isWatering = zone.watering.state === 'watering';
-  const isUnknown = !zone.telemetryReliable;
+  const isUnknown = zone.watering.state === 'unknown';
 
   const cells = [
     {
@@ -746,12 +748,12 @@ function renderZoneDetailCard(zone, callContact, d, onOpenCallSetup, onClose) {
     },
     {
       label: d.cellWater,
-      val: zone.watering.shortLabel,
+      val: zone.control?.phase === 'switching' ? d.outletSwitch : zone.watering.shortLabel,
       sub: isWatering
         ? `${zone.watering.activeOutletLabel} (${zone.watering.activeOutlet}/${zone.outletsTotal}) · ${zone.watering.elapsedLabel}`
         : isUnknown
           ? d.waterUnconfirmed
-          : d.outletsClosed(zone.outletsTotal),
+          : d.outletsIdle(zone.outletsTotal),
       tone: isWatering ? 'water' : isUnknown ? 'danger' : 'neutral'
     }
   ];
@@ -824,6 +826,12 @@ function renderZoneDetailCard(zone, callContact, d, onOpenCallSetup, onClose) {
           ),
           renderCallAction(callContact, d, onOpenCallSetup)
         )
+      : null,
+    onOpenPumps && zone.control
+      ? el('button', {
+          type: 'button', className: 'hb-zone-pump-btn', 'aria-haspopup': 'dialog',
+          dataset: { pumpZone: zone.id }, onClick: () => onOpenPumps(zone.id)
+        }, makeIcon('pump'), d.pumpControls, el('span', { 'aria-hidden': 'true' }, '→'))
       : null,
     el('p', { className: 'hb-hw-note' }, d.hwNote)
   );
@@ -947,12 +955,15 @@ function stateZoneWord(d) {
 
 export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   const provider = createDataProvider(providerConfig);
-  const scenarios = provider.getScenarios();
+  const [sites, scenarios] = await Promise.all([provider.getSites(), provider.getScenarios()]);
+  if (!sites.length || !scenarios.length) throw new Error('No monitoring context available');
+  const requested = (list, value, fallback) =>
+    list.find((item) => item.id === value)?.id ?? list.find((item) => item.id === fallback)?.id ?? list[0].id;
 
   const params = new URLSearchParams(window.location.search);
   const state = {
-    siteId: DEMO_SITES.some((s) => s.id === params.get('site')) ? params.get('site') : 'srb-scale-4',
-    scenarioId: scenarios.some((s) => s.id === params.get('scenario')) ? params.get('scenario') : 'incident',
+    siteId: requested(sites, params.get('site'), 'srb-scale-4'),
+    scenarioId: requested(scenarios, params.get('scenario'), 'incident'),
     selectedZoneId: null,
     activeTab: 'all',
     dockView: 'overview', // 'overview' | 'outlets' | 'events'
@@ -971,7 +982,9 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   document.title = getDict(state.lang).pageTitle;
 
   let snapshot = null;
-  let demoDrawerOpen = window.innerWidth >= 820;
+  let pumpPanel = null;
+  let contextVersion = 0;
+  let loadedVersion = -1;
   let prevDockRect = null;
   let prevTabRect = null;
   let prevAlertCount = null;
@@ -1178,7 +1191,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     if (pendingLivePayload) {
       const payload = pendingLivePayload;
       pendingLivePayload = null;
-      applyLivePayload(payload);
+      applyLivePayload({ ...payload, tickOnly: false });
     } else {
       render();
     }
@@ -1201,27 +1214,14 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       deviceClock.textContent = viewSnap.nowLabel;
     }
 
+    pumpPanel?.update(viewSnap);
     for (const zone of viewSnap.zones) {
       const isWatering = zone.watering.state === 'watering';
-      const isUnknown = !zone.telemetryReliable;
-      const shortAge = formatShortAge(zone.telemetry.ageLabel, state.lang);
-
       const card = root.querySelector(`[data-zone-card-id="${zone.id}"]`);
       if (card) {
         const mainEl = card.querySelector('.hb-zcard__main');
         const subEl = card.querySelector('.hb-zcard__sub');
-        const primaryLine = isWatering
-          ? `${zone.watering.elapsedLabel || d.primaryWaterFallback} · ${zone.watering.activeOutletLabel}`
-          : isUnknown
-            ? `? · ${shortAge}`
-            : d.primaryIdle;
-        const secondaryLine = isWatering
-          ? d.secFlowPresent(zone.watering.activeOutlet, zone.outletsTotal)
-          : zone.connection.state === 'offline'
-            ? d.secOffline
-            : zone.telemetry.freshness !== 'fresh'
-              ? d.secStale
-              : d.secFlowAbsent(shortAge);
+        const [primaryLine, secondaryLine] = zoneCardReadings(zone, state.lang, d);
         if (mainEl && mainEl.textContent !== primaryLine) mainEl.textContent = primaryLine;
         if (subEl && subEl.textContent !== secondaryLine) subEl.textContent = secondaryLine;
       }
@@ -1253,7 +1253,9 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
 
   function applyLivePayload(payload) {
     if (!payload?.snapshot) return;
-    const hasStructuralChange = Boolean(payload.liveEvent) || (payload.changedZoneIds && payload.changedZoneIds.length > 0);
+    // Only the mock explicitly identifies timer-only packets. A full polling
+    // snapshot from a different adapter may change any status or capability.
+    const hasStructuralChange = Boolean(payload.liveEvent) || payload.changedZoneIds?.length || !payload.tickOnly;
     if (!hasStructuralChange) {
       patchLiveTick(payload.snapshot);
       return;
@@ -1283,15 +1285,18 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   function startLiveSubscription() {
     stopLiveSubscription();
     if (!state.liveEnabled || typeof provider.subscribe !== 'function') return;
+    const version = contextVersion;
     unsubscribeLive = provider.subscribe({
       siteId: state.siteId,
       scenarioId: state.scenarioId,
       intervalMs: 1000,
       onUpdate: (payload) => {
+        if (version !== contextVersion) return;
         if (state.settingsOpen || isInteracting) {
           pendingLivePayload = payload;
           return;
         }
+        pendingLivePayload = null;
         applyLivePayload(payload);
       }
     });
@@ -1343,13 +1348,17 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
   }
 
   async function loadSnapshot() {
+    const version = ++contextVersion;
     stopLiveSubscription();
     liveNotice = null;
     pendingLivePayload = null;
-    snapshot = await provider.getSnapshot({
+    const next = await provider.getSnapshot({
       siteId: state.siteId,
       scenarioId: state.scenarioId
     });
+    if (version !== contextVersion) return;
+    snapshot = next;
+    loadedVersion = version;
     if (state.selectedZoneId && !snapshot.zones.some((z) => z.id === state.selectedZoneId)) {
       state.selectedZoneId = null;
       state.activeTab = 'all';
@@ -1358,107 +1367,42 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
     startLiveSubscription();
   }
 
-  function buildDemoBar() {
-    const activeScen = scenarios.find((s) => s.id === state.scenarioId)?.shortLabel ?? state.scenarioId;
-    const activeSite = DEMO_SITES.find((s) => s.id === state.siteId)?.label ?? state.siteId;
+  function hasPumpControl() {
+    return loadedVersion === contextVersion && snapshot?.siteId === state.siteId
+      && typeof provider.commandZone === 'function' && snapshot.zones.some((zone) => zone.control);
+  }
 
-    return el(
-      'header',
-      { className: 'demo-toolbar' },
-      el(
-        'div',
-        { className: 'demo-toolbar__top' },
-        el(
-          'div',
-          null,
-          el('h1', { className: 'demo-title' }, 'Ботанический радар и пульс полива'),
-          el('p', { className: 'demo-sub' }, `Стенд (read-only) · ${activeScen} · ${activeSite}`)
-        ),
-        el(
-          'div',
-          { className: 'demo-actions' },
-          el('a', { href: 'index.html', className: 'demo-link' }, '← 3 концепции'),
-          el(
-            'button',
-            { type: 'button', className: 'demo-motion-btn', onClick: toggleMotion },
-            state.motionPaused ? 'Включить анимации' : 'Пауза анимаций'
-          )
-        )
-      ),
-      el(
-        'details',
-        {
-          className: 'demo-details',
-          open: demoDrawerOpen,
-          onToggle: (e) => {
-            demoDrawerOpen = e.currentTarget.open;
-          }
-        },
-        el('summary', { className: 'demo-details__summary' }, 'Параметры стенда (сценарий и масштаб)'),
-        el(
-          'div',
-          { className: 'demo-controls' },
-          el(
-            'fieldset',
-            { className: 'demo-group' },
-            el('legend', null, 'Сценарий телеметрии'),
-            el(
-              'div',
-              { className: 'demo-btn-row demo-btn-row--3' },
-              scenarios.map((s) =>
-                el(
-                  'button',
-                  {
-                    type: 'button',
-                    className: 'demo-btn',
-                    'aria-pressed': String(state.scenarioId === s.id),
-                    onClick: async () => {
-                      state.scenarioId = s.id;
-                      syncUrl();
-                      await loadSnapshot();
-                      announce(`Сценарий: ${s.label}`);
-                    }
-                  },
-                  s.shortLabel
-                )
-              )
-            )
-          ),
-          el(
-            'fieldset',
-            { className: 'demo-group' },
-            el('legend', null, 'Проверка масштаба зон'),
-            el(
-              'div',
-              { className: 'demo-btn-row demo-btn-row--2' },
-              DEMO_SITES.map((s) =>
-                el(
-                  'button',
-                  {
-                    type: 'button',
-                    className: 'demo-btn demo-btn--scale',
-                    'aria-pressed': String(state.siteId === s.id),
-                    onClick: async () => {
-                      state.siteId = s.id;
-                      syncUrl();
-                      await loadSnapshot();
-                      announce(`Масштаб: ${s.label}`);
-                    }
-                  },
-                  s.label
-                )
-              )
-            )
-          )
-        )
-      )
-    );
+  function openPumps(zoneId = state.selectedZoneId, returnToZone = false) {
+    if (pumpPanel || !hasPumpControl()) return;
+    const context = { siteId: state.siteId, scenarioId: state.scenarioId };
+    const version = contextVersion;
+    pumpPanel = openPumpPanel({
+      snapshot: localizeSnapshot(snapshot, state.lang),
+      zoneId,
+      lang: state.lang,
+      liveEnabled: state.liveEnabled,
+      onCommand: async (command) => {
+        if (version !== contextVersion || !hasPumpControl()) {
+          throw Object.assign(new Error('Zone context changed'), { code: 'unavailable' });
+        }
+        const next = await provider.commandZone({ ...command, ...context });
+        if (version !== contextVersion || next === snapshot) return;
+        applyLivePayload({ snapshot: next, changedZoneIds: [command.zoneId] });
+      },
+      onClose: () => {
+        pumpPanel = null;
+        const selector = returnToZone ? `[data-pump-zone="${zoneId}"]` : '[data-dock="pumps"]';
+        (root.querySelector(selector) ?? root.querySelector('[data-dock="pumps"]'))?.focus({ preventScroll: true });
+      }
+    });
   }
 
   function render({ isLiveTick = false } = {}) {
     if (!snapshot) return;
     const d = getDict(state.lang);
     const viewSnap = localizeSnapshot(snapshot, state.lang);
+    pumpPanel?.update(viewSnap);
+    const supportsPumps = hasPumpControl();
     const viewNotice = localizeLiveNotice(liveNotice, state.lang);
     const prevScreenScrollTop = root.querySelector('.hb-screen')?.scrollTop ?? 0;
     prevDockRect = captureActiveBox('.hb-dock', '.hb-dock__btn[aria-pressed="true"]') ?? prevDockRect;
@@ -1549,7 +1493,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       el(
         'div',
         { className: 'hb-status-cluster' },
-        liveToggleBtn,
+        viewSnap.isSynthetic ? liveToggleBtn : null,
         pills.map((p) => el('span', { className: `hb-pill hb-pill--${p.tone}` }, p.text)),
         el('div', { className: 'hb-top-actions' }, topCallControl, settingsBtn)
       )
@@ -1708,7 +1652,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
             'div',
             { className: 'hb-sheet__content' },
             selectedZone
-              ? renderZoneDetailCard(selectedZone, state.callContact, d, () => openSettings(true), () => selectZone(selectedZone.id))
+              ? renderZoneDetailCard(selectedZone, state.callContact, d, () => openSettings(true), () => selectZone(selectedZone.id), supportsPumps ? (id) => openPumps(id, true) : null)
               : null,
             renderAllOutletsView(viewSnap, d, selectZone)
           )
@@ -1716,7 +1660,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
             'div',
             { className: 'hb-sheet__content' },
             selectedZone
-              ? renderZoneDetailCard(selectedZone, state.callContact, d, () => openSettings(true), () => selectZone(selectedZone.id))
+              ? renderZoneDetailCard(selectedZone, state.callContact, d, () => openSettings(true), () => selectZone(selectedZone.id), supportsPumps ? (id) => openPumps(id, true) : null)
               : null,
             renderTimeline(viewSnap, state.activeTab, state.callContact, d, () => openSettings(true), selectTab, jumpToZone)
           );
@@ -1753,7 +1697,6 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
       sheetBody
     );
 
-    // Разделяем 3 вкладки экранов (слева в капсуле) и отдельную кнопку графика полива (справа)
     const navButtons = [
       {
         id: 'overview',
@@ -1769,6 +1712,12 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
         pressed: state.dockView === 'outlets',
         onClick: () => setDockView('outlets')
       },
+      ...(supportsPumps ? [{
+        id: 'pumps',
+        icon: 'pump',
+        shortLabel: d.dockPumps,
+        onClick: () => openPumps()
+      }] : []),
       {
         id: 'events',
         icon: 'events',
@@ -1799,7 +1748,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
         : null,
       el(
         'div',
-        { className: 'hb-dock-row' },
+        { className: `hb-dock-row ${supportsPumps ? 'hb-dock-row--pumps' : ''}` },
         el(
           'nav',
           { className: 'hb-dock', 'aria-label': d.dockAria },
@@ -1810,7 +1759,9 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
               {
                 type: 'button',
                 className: 'hb-dock__btn',
-                'aria-pressed': String(btn.pressed),
+                dataset: { dock: btn.id },
+                'aria-pressed': btn.id === 'pumps' ? null : String(btn.pressed),
+                'aria-haspopup': btn.id === 'pumps' ? 'dialog' : null,
                 onClick: btn.onClick
               },
               makeIcon(btn.icon),
@@ -1854,7 +1805,7 @@ export async function mountHybridApp(root, providerConfig = { mode: 'mock' }) {
                 {
                   scenarios,
                   scenarioId: state.scenarioId,
-                  sites: DEMO_SITES,
+                  sites,
                   siteId: state.siteId,
                   motionPaused: state.motionPaused,
                   onSelectScenario: async (id) => {

@@ -2,8 +2,8 @@
 // Смена тестового адаптера на реальный HTTP-адаптер выполняется только здесь,
 // без изменений в экранных компонентах.
 
-import { createMockAdapter } from './adapters/mockAdapter.js?v=8';
-import { createHttpAdapter } from './adapters/httpAdapter.js?v=8';
+import { createMockAdapter } from './adapters/mockAdapter.js?v=9';
+import { createHttpAdapter } from './adapters/httpAdapter.js?v=9';
 
 export function createDataProvider(config = {}) {
   const mode = config.mode ?? 'mock';
@@ -16,5 +16,5 @@ export function createDataProvider(config = {}) {
     return config.customAdapter;
   }
 
-  return createMockAdapter({ label: config.label });
+  return createMockAdapter({ label: config.label, storage: config.storage });
 }

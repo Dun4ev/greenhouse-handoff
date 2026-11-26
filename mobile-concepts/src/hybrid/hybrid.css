@@ -2479,3 +2479,32 @@ html[data-motion="paused"] *::after {
   .hb-zcard, .hb-event__body, .hb-tab, .hb-dock__btn, .hb-dock-chart-btn { border-color: CanvasText; }
   .hb-tab[aria-pressed="true"], .hb-dock__btn[aria-pressed="true"], .hb-dock-chart-btn[aria-pressed="true"] { background: Highlight; color: HighlightText; }
 }
+
+/* Keep the pump shortcut and the existing chart reachable on narrow screens. */
+.hb-dock-row--pumps .hb-dock {
+  gap: 1px;
+}
+.hb-dock-row--pumps .hb-dock__btn {
+  min-width: 52px;
+  padding-inline: 7px;
+}
+@media (max-width: 365px) {
+  .hb-dock-row--pumps { gap: 4px; }
+  .hb-dock-row--pumps .hb-dock__btn { min-width: 44px; padding-inline: 4px; }
+  .hb-dock-row--pumps .hb-dock-chart-btn { min-width: 48px; padding-inline: 5px; }
+}
+.hb-zone-pump-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hb-zone-pump-btn span { margin-inline-start: auto; }

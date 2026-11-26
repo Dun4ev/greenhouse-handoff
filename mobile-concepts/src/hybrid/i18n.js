@@ -44,17 +44,16 @@ const DICT = {
     badgeIdle: 'Mirovanje',
     primaryWaterFallback: 'U toku',
     primaryIdle: 'Čekanje',
-    secFlowPresent: (a, t) => `FS1: Ima protoka · ${a}/${t}`,
     secOffline: 'FS1: Nepoznato · Prekid',
     secStale: 'Veza postoji · FS1 nep.',
-    secFlowAbsent: (age) => `FS1: Nema protoka · ${age}`,
     allOutletsTitle: 'Sva mesta zalivanja',
     allOutletsSub: (total, active, unknown) =>
       `Ukupno tačaka: ${total} · aktivnih: ${active}${unknown > 0 ? ` · zona bez telemetrije: ${unknown}` : ''}`,
     outletsZoneAria: (name) => `Mesta zalivanja ${name}`,
     outletUnknown: 'Nepoz.',
+    outletSwitch: 'Promena sekcije',
     outletWater: 'Zalivanje',
-    outletClosed: 'Zatvoren',
+    outletInactive: 'Bez zahteva',
     flowPrefix: (label) => `FS1: ${label}`,
     flowUnknownPrefix: (conn) => `${conn} · FS1: Nepoznato`,
     pulseTitle: 'Grafik zalivanja · 60 min',
@@ -75,14 +74,14 @@ const DICT = {
     cellFlowSub: 'Samo prisustvo',
     cellWater: 'Zalivanje',
     waterUnconfirmed: 'Nije potvrđeno',
-    outletsClosed: (n) => `${n} izl. zatvoreno`,
+    outletsIdle: (n) => `Izlazi bez zahteva: ${n}`,
     valvesAria: (name) => `Izlazi ${name}`,
     valveWater: 'Zaliv.',
     dedupText: (ooo, dup, pid, time) =>
       `Redosled paketa: zakasneli (${ooo}) upisan 1 put, duplikati odbačeni (${dup}). Zadržan paket ${pid} (${time}).`,
     recoveryOffline: 'Šta proveriti: napajanje ormana ŠA-U i nivo LTE signala.',
     recoveryStale: 'Šta proveriti: kanal veze radi, proveriti slanje telemetrije na Raspberry Pi / OVEN.',
-    hwNote: 'FS1 detektuje samo prisustvo protoka, ne i protok u l/min. pH/EC (HM-100) i nivo E4 proveravaju se lokalno.',
+    hwNote: 'FS1 registruje prisustvo protoka. pH i EC se očitavaju na HM-100. Osnovna oprema nema senzor nivoa E4.',
     callBtn: (label) => `Pozovi · ${label}`,
     callSetupBtn: 'Unesi telefon dežurnog',
     topCallAria: (label) => `Pozovi: ${label}`,
@@ -121,8 +120,11 @@ const DICT = {
     dockOutlets: 'Tačke',
     dockAlerts: 'Alarmi',
     dockChart: 'Grafik',
+    pumpControls: 'Upravljanje pumpom N2',
+    dockPumps: 'Pumpe',
     siteLabels: {
       'srb-pilot-1': '2 zone (pilot)',
+      'srb-pilot-2': 'Parcela B (2 zone)',
       'srb-scale-4': '4 zone (provera skale)'
     },
     scenarioShort: {
@@ -170,17 +172,16 @@ const DICT = {
     badgeIdle: 'Простой',
     primaryWaterFallback: 'Идет',
     primaryIdle: 'Ожидание',
-    secFlowPresent: (a, t) => `FS1: Есть поток · ${a}/${t}`,
     secOffline: 'FS1: Неизвестно · Обрыв',
     secStale: 'Связь есть · FS1 неизв.',
-    secFlowAbsent: (age) => `FS1: Нет потока · ${age}`,
     allOutletsTitle: 'Все точки полива',
     allOutletsSub: (total, active, unknown) =>
       `Всего точек: ${total} · активных: ${active}${unknown > 0 ? ` · без телеметрии зон: ${unknown}` : ''}`,
     outletsZoneAria: (name) => `Точки полива ${name}`,
     outletUnknown: 'Неизв.',
+    outletSwitch: 'Смена участка',
     outletWater: 'Полив',
-    outletClosed: 'Закрыт',
+    outletInactive: 'Без запроса',
     flowPrefix: (label) => `FS1: ${label}`,
     flowUnknownPrefix: (conn) => `${conn} · FS1: Неизвестно`,
     pulseTitle: 'График полива · 60 мин',
@@ -201,14 +202,14 @@ const DICT = {
     cellFlowSub: 'Только наличие',
     cellWater: 'Полив',
     waterUnconfirmed: 'Не подтвержден',
-    outletsClosed: (n) => `${n} вых. закрыты`,
+    outletsIdle: (n) => `Выходы без запроса: ${n}`,
     valvesAria: (name) => `Выходы ${name}`,
     valveWater: 'Полив',
     dedupText: (ooo, dup, pid, time) =>
       `Порядок пакетов: запоздалый (${ooo}) записан 1 раз, повторов отброшено (${dup}). Удержан пакет ${pid} (${time}).`,
     recoveryOffline: 'Что проверить: питание шкафа ША-У и уровень сигнала LTE.',
     recoveryStale: 'Что проверить: канал связи жив, проверить отправку телеметрии на Raspberry Pi / ОВЕН.',
-    hwNote: 'FS1 фиксирует только наличие потока, не расход. pH/EC (HM-100) и уровень Е4 проверяются локально.',
+    hwNote: 'FS1 фиксирует наличие потока. pH и EC считывают с HM-100. Датчик уровня Е4 в базовый состав не входит.',
     callBtn: (label) => `Позвонить · ${label}`,
     callSetupBtn: 'Указать телефон вызова',
     topCallAria: (label) => `Позвонить: ${label}`,
@@ -247,8 +248,11 @@ const DICT = {
     dockOutlets: 'Точки',
     dockAlerts: 'Тревоги',
     dockChart: 'График',
+    pumpControls: 'Управление насосом Н2',
+    dockPumps: 'Насосы',
     siteLabels: {
       'srb-pilot-1': '2 зоны (пилот)',
+      'srb-pilot-2': 'Участок Б (2 зоны)',
       'srb-scale-4': '4 зоны (проверка масштаба)'
     },
     scenarioShort: {
@@ -384,6 +388,27 @@ function srText(str) {
   return out;
 }
 
+// Structured events from the pump adapter carry a code and an optional outlet or time.
+function pumpEventSr(event) {
+  if (!event.controlEvent) return null;
+  const value = srText(event.controlValue || '');
+  const messages = {
+    startRequested: 'Zahtev za pokretanje ciklusa N2',
+    stopRequested: 'Zahtev za zaustavljanje ciklusa N2',
+    started: 'Pokrenut ciklus zalivanja N2',
+    stopped: 'Zaustavljen ciklus zalivanja N2',
+    scheduled: `Dnevni početak podešen na ${value}`,
+    unscheduled: 'Dnevni početak isključen',
+    scheduleStart: 'Pokretanje ciklusa po rasporedu',
+    scheduleSkipped: 'Planirano pokretanje preskočeno',
+    outletChange: `Prelazak na ${value} · zahtev za N2 isključen`,
+    outletStart: `Počelo zalivanje na izlazu ${value}`,
+    cycleComplete: 'Završen ciklus zalivanja N2',
+    commandInterrupted: 'Potvrda izvršenja nije dostupna'
+  };
+  return messages[event.controlEvent];
+}
+
 export function formatShortAge(ageLabel, lang) {
   if (lang === 'ru') return String(ageLabel || '').replace(/\s*назад$/, '');
   return srText(ageLabel).replace(/^pre\s+/, '');
@@ -426,7 +451,7 @@ export function localizeSnapshot(snapshot, lang) {
     })),
     events: snapshot.events.map((e) => ({
       ...e,
-      text: srText(e.text),
+      text: pumpEventSr(e) || srText(e.text),
       meta: e.meta ? srText(e.meta) : null,
       gapLabel: e.gapLabel ? srText(e.gapLabel) : null
     }))
@@ -437,6 +462,6 @@ export function localizeLiveNotice(notice, lang) {
   if (!notice || lang === 'ru') return notice;
   return {
     ...notice,
-    text: srText(notice.text)
+    text: notice.controlEvent ? [`Zona ${notice.zoneId}`, pumpEventSr(notice) || srText(notice.text)].join(' · ') : srText(notice.text)
   };
 }

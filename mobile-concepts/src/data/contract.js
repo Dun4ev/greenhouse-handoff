@@ -1,5 +1,7 @@
-// Единый read-only контракт данных мониторинга и валидация/редуктор пакетов.
+// Единый формат снимка мониторинга и возможностей управления.
 // Экранные компоненты работают только с нормализованным снимком из этого модуля.
+
+import { normalizePumpControl } from './pumpControl.js';
 
 const ALLOWED_CONNECTION = new Set(['online', 'offline']);
 const ALLOWED_FRESHNESS = new Set(['fresh', 'stale', 'missing']);
@@ -8,16 +10,16 @@ const ALLOWED_WATERING = new Set(['watering', 'idle', 'unknown']);
 const ALLOWED_EVENT_KIND = new Set(['info', 'warning', 'gap', 'late']);
 const ALLOWED_SLOT_STATE = new Set(['watering', 'idle', 'gap']);
 
-function normalizePulseStrip(rawStrip, telemetryReliable, gapMinutes, wateringState) {
+function normalizePulseStrip(rawStrip, telemetryReliable, gapMinutes, wateringState, closedIntervals) {
   const defaultLen = 30;
   const rawSlots = Array.isArray(rawStrip?.slots) && rawStrip.slots.length > 0
     ? rawStrip.slots.map((s) => (ALLOWED_SLOT_STATE.has(s) ? s : 'idle'))
     : Array.from({ length: defaultLen }, () => (wateringState === 'watering' ? 'watering' : 'idle'));
 
-  // Инвариант: при обрыве связи или устаревшем пакете хвостовой интервал gapMinutes
-  // всегда принудительно помечается как 'gap' (данные не подтверждены).
+  // Для внешнего снимка с непроверенной историей скрываем неподтвержденный хвост.
+  // Симулятор сам учитывает разрывы по границам завершенных интервалов.
   const slots = [...rawSlots];
-  if (!telemetryReliable) {
+  if (!closedIntervals && !telemetryReliable) {
     const gapSlots = Math.max(1, Math.min(slots.length, Math.round((gapMinutes || 20) / 2)));
     for (let i = slots.length - gapSlots; i < slots.length; i += 1) {
       slots[i] = 'gap';
@@ -232,7 +234,7 @@ function buildFreshnessLabel(freshness) {
  * Гарантирует главный инвариант безопасности отображения:
  * при потере связи или устаревании телеметрии поток и полив ВСЕГДА становятся 'unknown'.
  */
-export function normalizeSnapshot(raw) {
+export function normalizeSnapshot(raw, { allowControl = true, closedPulseIntervals = false } = {}) {
   if (!raw || typeof raw !== 'object') {
     throw new Error('Некорректный снимок мониторинга');
   }
@@ -282,6 +284,7 @@ export function normalizeSnapshot(raw) {
           outletsTotal,
           outletLabels,
           telemetryReliable,
+          control: allowControl ? normalizePumpControl(z.control, telemetryReliable, wateringState) : null,
           trustLevel,
           trustSummary,
           connection: {
@@ -327,7 +330,8 @@ export function normalizeSnapshot(raw) {
             z.pulseStrip,
             telemetryReliable,
             Number.isFinite(Number(z.telemetry?.gapMinutes)) ? Number(z.telemetry?.gapMinutes) : 0,
-            wateringState
+            wateringState,
+            closedPulseIntervals
           )
         };
       })
@@ -342,6 +346,8 @@ export function normalizeSnapshot(raw) {
         text: asText(evt.text, ''),
         kind: ALLOWED_EVENT_KIND.has(evt.kind) ? evt.kind : 'info',
         meta: asText(evt.meta, ''),
+        controlEvent: asText(evt.controlEvent, ''),
+        controlValue: asText(evt.controlValue, ''),
         gapLabel: asText(evt.gapLabel, '')
       }))
     : [];

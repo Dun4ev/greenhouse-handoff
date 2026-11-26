@@ -2,7 +2,7 @@
 // Не используется на этапе 1 до согласования API; демонстрирует взаимозаменяемость
 // источника данных без правок экранных компонентов.
 
-import { normalizeSnapshot } from '../contract.js';
+import { normalizeSnapshot } from '../contract.js?v=9';
 
 export function createHttpAdapter({ baseUrl = '/api/v1', fetchImpl = globalThis.fetch } = {}) {
   if (typeof fetchImpl !== 'function') {
@@ -25,7 +25,7 @@ export function createHttpAdapter({ baseUrl = '/api/v1', fetchImpl = globalThis.
       const res = await fetchImpl(url, { headers: { Accept: 'application/json' } });
       if (!res.ok) throw new Error(`HTTP ${res.status} при загрузке снимка`);
       const payload = await res.json();
-      return normalizeSnapshot({ ...payload, isSynthetic: false, sourceLabel: 'HTTP API' });
+      return normalizeSnapshot({ ...payload, isSynthetic: false, sourceLabel: 'HTTP API' }, { allowControl: false });
     },
     async getFleetSnapshots() {
       const sites = await this.getSites();
